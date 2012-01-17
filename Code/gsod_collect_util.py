@@ -37,7 +37,7 @@ def list_WMO_locations_per_country():
     """
     loc_range_dict = {}
     
-    country_list_filemame = os.path.join("GSOD", "NCDC-country-list.txt")
+    country_list_filemame = os.path.join("Data", "GSOD", "NCDC-country-list.txt")
     f_country_list = open(country_list_filemame, "r")
     line = f_country_list.readline()
     # Skip header
@@ -123,7 +123,7 @@ def read_ish_history():
 
     Returns a structured array
     """
-    ish_filepath = os.path.join('GSOD', 'ish-history.TXT')
+    ish_filepath = os.path.join("Data", 'GSOD', 'ish-history.TXT')
     col_names = ["USAF", "WBAN", "STATION_NAME", "CTRY_WMO", "CTRY_FIPS", "ST", "CALL", "LAT", "LON", "ELEV", "BEGIN", "END"]
     starts = np.array([0,7,13,43,46,49,52,58,65,73,83,92])
     ends = np.hstack((starts[1:], 100)) # leave the space between values between columns since there is no sep
@@ -218,13 +218,13 @@ def collect_yearly_data(year, location_WMO, location_WBAN, data_source = 'NCDC')
     source.
     """
     filename = info2filepath(year, location_WMO, location_WBAN)
-    filepath = os.path.join("GSOD", "gsod_"+str(year), filename)
+    filepath = os.path.join("Data", "GSOD", "gsod_"+str(year), filename)
     if not os.path.exists(filepath):
         zipped_filepath = filepath+".gz"
         if os.path.exists(zipped_filepath):
             unzip(zipped_filepath)
         else:
-            target_folder = "GSOD\gsod_"+str(year)
+            target_folder = "Data/GSOD/gsod_"+str(year)
             if not os.path.exists(target_folder):
                 distutils.dir_util.mkpath(target_folder)
             # Download the file from the NCDC ftp site
@@ -248,18 +248,24 @@ def search_station_codes(part_station_name, location_dict):
     return [(key, location_dict[key]) for key in location_dict.keys()
             if key.lower().find(part_station_name.lower()) != -1]
 
-def search_station(location_db, location_dict, part_station_name = None, country_code = None, state_code = None):
-    """ Search for a station from part of its name.
-
-    country_code: 2 letter code for each country.
+def search_station(location_db, location_dict, part_station_name = None, WMO_location = None,
+                       WBAN_location = None, country_code = None, state_code = None):
+    """ Search for a station from part of its name, its location, its country code and/or its state.
     """
     mask = np.ones(len(location_db), dtype = np.bool)
     if part_station_name:
-        #match_station = location_db['STATION_NAME'] == part_station_name
-        # FIXME: for loop can probably be removed
-        for i in xrange(len(mask)):
-            match_station[i] = location_db['STATION_NAME'][i] in search_station_codes(part_station_name, location_dict)
+        match_station = location_db['STATION_NAME'] == part_station_name
+        # Allow for partial station name
+        #match_station = np.empty(len(mask), dtype = np.bool)
+        #for i in xrange(len(mask)):
+        #    match_station[i] = location_db['STATION_NAME'][i] in search_station_codes(part_station_name, location_dict)
         mask = mask & match_station
+    if WMO_location:
+        match_wmo = location_db['USAF'] == WMO_location
+        mask = mask & match_wmo
+    if WBAN_location:
+        match_wban = location_db['WBAN'] == WBAN_location
+        mask = mask & match_wban
     if country_code:
         match_country = location_db['CTRY_WMO'] == country_code
         mask = mask & match_country
@@ -285,19 +291,15 @@ class GSODDataReader(HasTraits):
         self.location_db = read_ish_history()
         self.location_dict = initialize_location_dict(self.location_db)
         
-    def search_station_code(self, part_station_name):
-        return search_station_code(part_station_name, self.location_dict)
+    def search_station_codes(self, part_station_name):
+        return search_station_codes(part_station_name, self.location_dict)
 
-    def show_locations(self, country, state = None, year = None):
-        """ List all the locations by WMO code, WBAN code if applicable, city
-        name, state if applicable and country, by country and by state if
-        provided.
-        Restrict the list to available data if a year is provided.
-        """
-        if year is None:
-            print show_all_locations(coutry=country)
-        else:
-            show_available_location(year)
+    def search_station(self, part_station_name = None, WMO_location = None,
+                       WBAN_location = None, country_code = None,
+                       state_code = None):
+        return search_station(self.location_db, self.location_dict,
+                              part_station_name, WMO_location, WBAN_location,
+                              country_code, state_code)
 
     def request_year(self, year=None, location_WMO=None, location_WBAN=None):
         """ Process a request.
@@ -315,7 +317,5 @@ class GSODDataReader(HasTraits):
             year = datetime.datetime.today().year
         if location_WMO is None and location_WBAN is None:
             raise OSError("collect_yearly_data: no location specified")
-        
-        if not self.ftp_open:
-            self.open_ftp()
+
         return collect_yearly_data(year, location_WMO, location_WBAN)
