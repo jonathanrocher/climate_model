@@ -203,8 +203,6 @@ def datafolder2pandas(folderpath):
             key = filename[:13]
             data[key] = datafile2pandas(file2load)
     return pandas.Panel(data)
-    
-
  
 def collect_year_at_loc(year, location_WMO, location_WBAN, data_source = 'NCDC'):
     """ Collect the data GSOD data file for specified location and specified
@@ -238,8 +236,6 @@ def collect_year_at_loc(year, location_WMO, location_WBAN, data_source = 'NCDC')
     return datafile2pandas(filepath)
 
 def count_op_files(folder):
-    print folder
-    print os.listdir(folder)
     return len([filename for filename in os.listdir(folder) if os.path.splitext(filename)[1] in [".op", ".gz"]])
 
 def collect_year(year, data_source = 'NCDC'):
