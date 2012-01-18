@@ -191,7 +191,7 @@ def datafolder2pandas(folderpath):
     """ Read a NCDC GSOD folder into a pandas panel
     """
     data = {}
-    print "Loading loading all op files in %s ..." % folderpath
+    print "Loading all op files in %s ..." % folderpath
     for filename in os.listdir(folderpath):
         if os.path.splitext(filename)[1] == ".op":
             file2load = os.path.join(folderpath, filename)
