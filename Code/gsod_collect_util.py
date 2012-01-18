@@ -295,17 +295,11 @@ def collect_year(year):
         # Folder not already present
         if not os.path.exists(local_filepath):
             # tar file not present either: download it!
-            ftp_connection = open_ftp(data_source)
-            folder_location = os.path.join('/pub/data/gsod',str(year))
-            out_cwd = ftp_connection.cwd(folder_location)
-            if out_cwd != OUT_CWD_SUCCESS:
-                raise OSError("Unable to change to directory %s" % folder_location)
-            file_obj = open(local_filepath, "w")
-            ftp_connection.retrlines('RETR '+filename, file_obj.write)
-            file_obj.close()
-            ftp_connection.close()
+            if data_source == 'NCDC':
+                remote_location = os.path.join('/pub/data/gsod',str(year))
+            remote_target = os.path.join(remote_location, filename)
+            retrieve_file(data_source, remote_target, local_filepath)
         
-        # tar file present either: untar it!
         untar(local_filepath)
         
     return datafolder2pandas(local_folderpath)
