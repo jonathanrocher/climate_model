@@ -200,7 +200,7 @@ def datafolder2pandas(folderpath):
         elif filename.endswith(".op.gz"):
             unzip(os.path.join(folderpath, filename))
             file2load = os.path.join(folderpath, os.path.splitext(filename)[0])
-            key = filename[:13]
+            key = filename[:17]
             data[key] = datafile2pandas(file2load)
     return pandas.Panel(data)
  
@@ -318,14 +318,14 @@ class GSODDataReader(HasTraits):
     def search_station_codes(self, part_station_name):
         return search_station_codes(part_station_name, self.location_dict)
 
-    def search_station(self, part_station_name = None, location_WMO = None,
-                       location_WBAN = None, country_code = None,
-                       state_code = None):
+    def search_station(self, station_name = None, location_WMO = None,
+                       location_WBAN = None, country = None,
+                       state = None):
         return search_station(self.location_db, self.location_dict,
-                              part_station_name, location_WMO, location_WBAN,
-                              country_code, state_code)
+                              station_name, location_WMO, location_WBAN,
+                              country, state)
 
-    def collect_year(self, year=None, part_station_name=None,
+    def collect_year(self, year=None, station_name=None,
                      location_WMO=None, location_WBAN=None,
                      country=None, state=None):
         """ Process a request for data.
@@ -344,14 +344,14 @@ class GSODDataReader(HasTraits):
             print "No year was provided: using the current one (%s)" % year
             
         no_location = (location_WMO is None and location_WBAN is None
-                       and part_station_name is None and country is None and
+                       and station_name is None and country is None and
                        state is None)
         if no_location:
             # Requested all data for the year that is at all locations
             return collect_year(year)
         else:
             filtered = search_station(self.location_db, self.location_dict,
-                                      part_station_name, location_WMO, location_WBAN,
+                                      station_name, location_WMO, location_WBAN,
                                       country, state)
             if len(filtered) == 1:
                 return collect_year_at_loc(year, location_WMO, location_WBAN)
@@ -360,7 +360,8 @@ class GSODDataReader(HasTraits):
                 for layer in filtered:
                      df = collect_year_at_loc(year, layer['USAF'], layer['WBAN'])
                      # reindex over the entire year in case there are missing values
-                     df = df.reindex(DateRange(start = '1/1/%s' % year, end = '31/12/%s' % year,
+                     df = df.reindex(pandas.DateRange(start = '1/1/%s' % year, end = '31/12/%s' % year,
                                               offset = pandas.datetools.day))
-                     data[str(location_WMO)+"-"+str(location_WBAN)] = df
-                return Panel(data)
+                     key = str(layer['USAF'])+"-"+str(layer['WBAN'])+"-"+str(year)
+                     data[key] = df
+                return pandas.Panel(data)
