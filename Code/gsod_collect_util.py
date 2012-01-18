@@ -22,11 +22,11 @@ import os
 import numpy as np
 import pandas
 from distutils.dir_util import mkpath
-import gzip
-import tarfile
-from urllib import urlretrieve
 
 from traits.api import HasTraits, Bool, Instance, Enum, Array, Dict
+
+from retrieve_remote import retrieve_file, info2filepath
+from file_sys_util import untar, unzip
 
 # FTP successful return code
 OUT_CWD_SUCCESS = '250 CWD command successful'
@@ -174,44 +174,6 @@ def initialize_location_dict(ishdata = None):
             # There is a station name. Store its location codes
             location_dict[ishdata[i][2]] = (ishdata[i][0], ishdata[i][1])
     return location_dict
-
-def unzip(zipped_filepath):
-    """ Unzip a file and save it with the same name in the same location.
-    """
-    print "Unziping %s..." % zipped_filepath
-    target_filepath = zipped_filepath.replace(".gz", "")
-    f_in = gzip.open(zipped_filepath, 'rb')
-    f_out = open(target_filepath, 'wb')
-    f_out.write(f_in.read())
-    f_out.close()
-    f_in.close()
-    os.remove(zipped_filepath)
-
-def untar(filepath):
-    """ Untar a tar file in its present location.
-    FIXME: add inspection of data before untaring everything onto local disk...?
-    """
-    print "Extraction tar archive %s..." % filepath
-    arch = tarfile.TarFile(filepath)
-    target_folder = os.path.split(filepath)[0]
-    arch.extractall(path = target_folder)
-    arch.close()
-    
-def info2filepath(year, location_WMO = None, location_WBAN = None, data_source = 'NCDC'):
-    """ Convert a year and location code to a filename where that data is
-    stored. If no location is provided, convert the year to the tar file 
-    """
-    if data_source == 'NCDC':
-        if location_WMO is not None and location_WBAN is not None:
-            # Force the format to have WMO loc on 6 char and WBAN on 5. 
-            return "{0:0>6d}-{1:0>5d}-{2}.op".format(location_WMO, location_WBAN, year)
-        elif location_WMO is None and location_WBAN is None:
-            return "gsod_"+str(year)+".tar"
-        else:
-            raise ValueError("Only 1 location code is provided (WMO = %s, "
-                             "WBAN = %s)." % (location_WMO, location_WBAN))
-    else:
-        raise NotImplementedError("The data source %s is currently not supported" % data_source)
     
 def datafile2pandas(filepath):
     """ Read a NCDC GSOD file into a pandas dataframe
@@ -229,31 +191,20 @@ def datafolder2pandas(folderpath):
     """ Read a NCDC GSOD folder into a pandas panel
     """
     data = {}
+    print "Loading loading all op files in %s ..." % folderpath
     for filename in os.listdir(folderpath):
         if os.path.splitext(filename)[1] == ".op":
             file2load = os.path.join(folderpath, filename)
-            print "Loading %s ..." % file2load
             key = filename[:13]
             data[key] = datafile2pandas(file2load)
         elif filename.endswith(".op.gz"):
             unzip(os.path.join(folderpath, filename))
             file2load = os.path.join(folderpath, os.path.splitext(filename)[0])
-            print "Loading %s ..." % file2load
             key = filename[:13]
             data[key] = datafile2pandas(file2load)
     return pandas.Panel(data)
     
-def retrieve_file(data_source, remote_target, local_filepath):
-    """ Retrieve a file from a data source. 
 
-    ENH: Add sniffing capabilities to test what type of connection it is. Paramiko?
-    """
-    if data_source == "NCDC":
-        url_base = "ftp://ftp.ncdc.noaa.gov/pub/data/gsod"
-        url = os.path.join(url_base, remote_target)
-        received = urlretrieve(url, local_filepath)
-    else:
-        raise NotImplementedError("Unable to retrieve data from %s" % data_source)
  
 def collect_year_at_loc(year, location_WMO, location_WBAN, data_source = 'NCDC'):
     """ Collect the data GSOD data file for specified location and specified
@@ -287,7 +238,9 @@ def collect_year_at_loc(year, location_WMO, location_WBAN, data_source = 'NCDC')
     return datafile2pandas(filepath)
 
 def count_op_files(folder):
-    return len([filename for filename in os.listdir(folder) if os.path.split(filename)[1] in [".op", ".gz"]])
+    print folder
+    print os.listdir(folder)
+    return len([filename for filename in os.listdir(folder) if os.path.splitext(filename)[1] in [".op", ".gz"]])
 
 def collect_year(year, data_source = 'NCDC'):
     """ Collect the GSOD data file for all locations for the specified
@@ -302,11 +255,12 @@ def collect_year(year, data_source = 'NCDC'):
         # Folder not already present
         os.mkdir(local_folderpath)
     if count_op_files(local_folderpath) < 10:
+        # probably not all the data files are present
         if not os.path.exists(local_filepath):
             # tar file not present either: download it!
             if data_source == 'NCDC':
                 remote_location = str(year)
-            print "Retrieving archive %s... This may take several minutes."
+            print "Retrieving archive %s... This may take several minutes." % local_filepath
             remote_target = os.path.join(remote_location, filename)
             retrieve_file(data_source, remote_target, local_filepath)
         untar(local_filepath)
@@ -375,7 +329,7 @@ class GSODDataReader(HasTraits):
                               part_station_name, location_WMO, location_WBAN,
                               country_code, state_code)
 
-    def request_year(self, year=None, part_station_name=None,
+    def collect_year(self, year=None, part_station_name=None,
                      location_WMO=None, location_WBAN=None,
                      country=None, state=None):
         """ Process a request for data.
