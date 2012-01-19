@@ -35,29 +35,46 @@ def pandas_hdf_to_data_dict(filename):
     FIXME: Add check that index is always the same. 
     """
     store = pandas.HDFStore(filename)
-    ts_data = {}
-    print "store", store
-    for key, group in store.handle.root._v_children.iteritems():
-        #print key, group, store[key]
-        pandas_ds = store[key]
+    pandas_list = [(key, store[key]) for key in store.handle.root._v_children.keys()]
+    
+    return pandas2array_dict(pandas_list, names = names)
+    
+def pandas2array_dict(pandas_list, names = []):
+    """ Convert a list of pandas into a dict of arrays for plotting.
+    They must have the same index. One of the entries in the output dict is one
+    of these indexes with key "index". The arrays will be stored with the name
+    of the pandas (.name attr), and if applicable the name of the column and of
+    the item. Optionally a list of names to use can be passed to override the
+    .name attribute. 
+    """
+    array_dict = {}
+    # If there is only 1 pandas, make up a name
+    if len(pandas_list) == 1 and not pandas_list[0].name and not names:
+        names = ["pandas"]
+    array_dict["index"] = np.array(pandas_list[0].index)
+    for i, pandas_ds in enumerate(pandas_list):
+        if names:
+            name = names[i]
+        elif pandas_ds.name:
+            name = pandas_ds.name
+        else:
+            raise ValueError("The pandas number %s in the list doesn't have a "
+                             "name." % i)
+            
         if isinstance(pandas_ds, pandas.core.series.Series):
-            if pandas_ds.name:
-                entry = pandas_ds.name
-            else:
-                entry = key
-            ts_data[entry] = pandas_ds.values
-            ts_data["index"] = np.array(pandas_ds.index)
+            entry = name
+            array_dict[entry] = pandas_ds.values
         elif isinstance(pandas_ds, pandas.core.frame.DataFrame):
             for col_name,series in pandas_ds.iteritems():
-                entry = key+"-"+col_name
-                ts_data[entry] = pandas_ds[col_name].values
+                entry = name+"-"+col_name
+                array_dict[entry] = pandas_ds[col_name].values
         else:
             for item, df in pandas_ds.iteritems():
                 for col_name,series in df.iteritems():
-                    entry = key+"-"+item+"-"+col_name
-                    ts_data[entry] = df[col_name].values
-    assert("index" in ts_data)
-    return ts_data
+                    entry = name+"-"+item+"-"+col_name
+                    array_dict[entry] = df[col_name].values
+    assert("index" in array_dict)
+    return array_dict
 
 def attach_tools(plot):
     """ Little utility function to attach plot tools: zoom, pan and legend tools
@@ -81,7 +98,18 @@ class GSODDataPlotterView(HasTraits):
     """
     data_file = File()
     ts_data = Dict()
-    ts_plot = Instance(ToolbarPlot, ())
+    ts_plot = Instance(ToolbarPlot)
+
+    def __init__(self, pandas_list = [], array_dict = {}, *args, **kw):
+        """ If a (list of) pandas or a dict of arrays is passed, load them up. 
+        """
+        super(GSODDataPlotterView, self).__init__(*args, **kw)
+        if not isinstance(pandas_list, list):
+            pandas_list = [pandas_list]
+        if pandas_list:
+            self.ts_data.update(pandas2array_dict(pandas_list))
+        if array_dict:
+            self.ts_data.update(ts_dict)
 
     def _data_file_changed(self):
        """ Update the data from the HDF5 file.
@@ -96,13 +124,11 @@ class GSODDataPlotterView(HasTraits):
         arr_data = ArrayPlotData()
         for k,v in self.ts_data.items():
             arr_data.set_data(k,v)
-        print arr_data.list_data()
-        self.plot = ToolbarPlot(arr_data)
+        self.ts_plot = ToolbarPlot(arr_data)
         for i, k in enumerate([k for k in self.ts_data.keys() if k != "index"]):
-            self.plot.plot(("index", k), name = k, color = colors[i % len(colors)])
-        self.plot.title = "Time series visualization from %s" % self.data_file
-        self.plot.request_redraw()
-        attach_tools(self.plot)
+            self.ts_plot.plot(("index", k), name = k, color = colors[i % len(colors)])
+        self.ts_plot.title = "Time series visualization from %s" % self.data_file
+        attach_tools(self.ts_plot)
     
     traits_view = View(
             VGroup(Item('data_file', style = 'simple', label="HDF file to load"), 
@@ -112,7 +138,7 @@ class GSODDataPlotterView(HasTraits):
             width=900, height=800, resizable=True)
 
 if __name__ == "__main__":
-    viewer = GSODDataPlotterView(data_file = "test.h5")
+    viewer = GSODDataPlotterView()
     viewer.configure_traits()
 
 

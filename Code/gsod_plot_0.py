@@ -36,8 +36,8 @@ class GSODDataPlotterView(HasTraits):
         # Plot container
         plot = ToolbarPlot(arr_data)
         # Plot curves
-        plot.plot(("x", "y1"), name = "curve 1!", color = "red")
-        plot.plot(("x", "y2"), name = "curve 2!", color = "blue")
+        plot.plot(("x", "y1"), name = "ts 1", color = "red")
+        plot.plot(("x", "y2"), name = "ts 2", color = "blue")
         plot.title = "Multi timeseries plotter"
         return plot
     
