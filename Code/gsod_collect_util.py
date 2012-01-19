@@ -325,9 +325,8 @@ class GSODDataReader(HasTraits):
                               station_name, location_WMO, location_WBAN,
                               country, state)
 
-    def collect_year(self, year=None, station_name=None,
-                     location_WMO=None, location_WBAN=None,
-                     country=None, state=None):
+    def collect_year(self, year=None, station_name=None, location_WMO=None,
+                     location_WBAN=None, country=None, state=None):
         """ Process a request for data.
 
         Inputs:
