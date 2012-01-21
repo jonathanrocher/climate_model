@@ -24,11 +24,13 @@ def info2filepath(year, location_WMO = None, location_WBAN = None, data_source =
 def retrieve_file(data_source, remote_target, local_filepath):
     """ Retrieve a file from a data source. 
 
-    ENH: Add sniffing capabilities to test what type of connection it is. Paramiko?
+    ENH: Add sniffing capabilities to test what type of connection it is. Paramiko if SFTP.
     """
     if data_source == "NCDC":
         url_base = "ftp://ftp.ncdc.noaa.gov/pub/data/gsod"
         url = os.path.join(url_base, remote_target)
         received = urlretrieve(url, local_filepath)
+        if not received:
+            raise OSError("Failed receiving the file %s." % url)
     else:
         raise NotImplementedError("Unable to retrieve data from %s" % data_source)

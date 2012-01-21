@@ -16,6 +16,12 @@ Background information:
 a) locations:
 - WMO location codes are also named 'USAF'. They are distinct from the WBAN location code. 
 - Each station is identified by a unique set of (WMO, WBAN) codes.
+
+TO DO LIST:
+TODO: Add the possibility to load several years for one location inside the same DF.
+TODO: Add the possibility to filter on the columns/type of information requested.
+TODO: Add other data sources such as weather underground, data.gov, ... and allow merging data. 
+TODO: Build a UI on top of all of this. A simple one just to search and store the files locally. another one integrating an ipython prompt to load the data and be able to play with them afterwards.
 """
 import datetime
 import os
@@ -42,6 +48,9 @@ def list_WMO_locations_per_country():
     910000-914999 HI, KA, LN, MH, MY, NZ, PN, WK Pacific Ocean Islands
     915000-915299 SO                             Solomon Islands
     915300-915399 NW, NZ                         Detached Islands (Nauru, New Zealand)
+
+    FIXME: instead of manual loading, use genfromtxt. It can split a line
+    on a number of characters.
     """
     loc_range_dict = {}
     
