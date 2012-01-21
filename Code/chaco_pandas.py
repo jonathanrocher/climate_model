@@ -1,47 +1,113 @@
-""" Utilities for deal with pandas objects
+""" Utilities for deal with pandas objects.
 """
 
 import pandas
+import tables
 import numpy as np
 import time
+import warning
 
-def pandas_hdf_to_data_dict(filename):
+def pandas_hdf_to_data_dict2(filename):
+    """ Explore the content of the pandas HDFStore (HDF5) and create a dictionary
+    of timeseries (numpy arrays) found in it. The key will be used as names
+    for the curves. All indexes must be the same and stored once with key
+    "index".
+
+    Note: This assumes that the file was created via the pandas' HDFStore
+    interface: all pandas are stored inside a group containing the data and the
+    array of indexes in each direction. Dataframes and panels are stored
+    respectively as 2, and 3 dimensional nd-arrays.
+
+    Returns:
+    - content of all (1D) timeseries found in the hdf5 file including the index
+    - type of the index ('datetime' means values in s since Epoch, )
+
+    NOTE: The version 1 accesses the pandas, by reconstructing them from the
+    HDFStore. But this is inefficient as pandas stores all the pandas components
+    in the form of numpy arrays even for DateRange instances. This is an deeper
+    implementation that accesses uses the numpy arrays directly inside the HDF
+    file (2x gain). 
+
+    Each group and array is stored with a set of attributes accessible via its
+    _v_attrs. For example each series contains an index with several attributes
+    including 'kind'. It stores if the index was a DateRange in pandas. 
+    """
+    h5file = tables.openFile(filename, "r")
+    content = {}
+    index_dict = {}
+    # All pandas stored using the HDFStore interface are organized one per
+    # group. DateRange indexes possess a 'kind' attribute that specifies
+    # that it is an array of datetime objects.
+    for key, group in h5file.root._v_children.items():
+        group = getattr(h5file.root, key)
+        pandas_type = getattr(group._v_attrs, "pandas_type", "other")
+        if pandas_type == 'series':
+            # only the read method forces to load the content into memory
+            content[key] = group.values.read() 
+            index_dict[key] = group.index
+        elif pandas_type == 'frame':
+            index_dict[key] = group.axis1
+            data = group.block0_values.read()
+            for i, col_name in enumerate(group.axis0):
+                content[key+"_"+col_name] = data[i]
+        elif pandas_type == 'wide':
+            index_dict[key] = group.axis1
+            data = group.block0_values.read()
+            for i, item_name in enumerate(group.axis0):
+                for j, col_name in enumerate(group.axis2):
+                    entry = key+"_"+item_name+"_"+col_name
+                    content[entry] = data[i,:,j]
+        else:
+            raise ValueError("The group found in the file %s is not a standard type." % filename)
+
+    key0,index0 = index_dict.items()[0]
+    arr_index0 = index0.read()
+    content["index"] = arr_index0
+    # Check indexes are all the same.
+    # FIXME: do this by creating a 2D np array?
+    for k,v in index_dict.items()[1:]:
+        if not np.all(v.read() == arr_index0):
+            warning.warn("Error: the index of %s is not equal to the index of %s" % (k, key0))
+    h5file.close()
+    return content, getattr(index0, 'kind', "numeric")
+
+def pandas_hdf_to_data_dict1(filename):
     """ Explore the content of the pandas store (HDF5) and create a dictionary
     of timeseries (numpy arrays) found in it. The key will be used as names
     for the curves. All indexes must be the same and stored once with key
     "index".
 
-    2 possible approches here: dealing with v objects which are pytables
-    groups containing directly the numpy arrays used for plotting, or
-    reconstructing the pandas for the simplicity of the code. 
-
-    FIXME: Add check that index is always the same. 
+    NOTE: This is the naive version of the task using the pandas' interface only.
+    See version 2 for faster implementation. 
     """
     store = pandas.HDFStore(filename, "r")
     pandas_list = [store[key] for key in store.handle.root._v_children.keys()]
     names = store.handle.root._v_children.keys()
-    return pandas2array_dict(pandas_list, names = names)
-    
+    store.close()
+    return  pandas2array_dict(pandas_list, names = names)
+
 def pandas2array_dict(pandas_list, names = []):
     """ Convert a list of pandas into a dict of arrays for plotting.
     They must have the same index. One of the entries in the output dict is one
     of these indexes with key "index". The arrays will be stored with the name
     of the pandas (.name attr), and if applicable the name of the column and of
     the item. Optionally a list of names to use can be passed to override the
-    .name attribute. 
+    .name attribute.
+    
+    FIXME: Add check that index is always the same. 
     """
     array_dict = {}
     # If there is only 1 pandas, make up a name
     if len(pandas_list) == 1 and not pandas_list[0].name and not names:
         names = ["pandas"]
     # If datetime index, convert to an array of ints, and create tick labels
-    first_index = np.array(pandas_list[0].index)
+    first_index = pandas_list[0].index
     if first_index.is_all_dates():
         index_is_dates = True
-        array_dict["index"] = [time.mktime(d.timetuple()) for d in first_index]
+        array_dict["index"] = [time.mktime(d.timetuple()) for d in np.array(first_index)]
     else:
         index_is_dates = False
-        array_dict["index"] = first_index
+        array_dict["index"] = np.array(first_index)
     for i, pandas_ds in enumerate(pandas_list):
         if names:
             name = names[i]

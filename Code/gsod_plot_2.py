@@ -1,10 +1,6 @@
 """ Implement a Chaco data plotter that loads pandas data from an hdf5 file.
 The plotter contains zoom, pan, and legend highlighter tools and preserve
-the tick labels .
-
-WARNING: This is an simple implementation that simply uses the API for pytables
-and Chaco. A deeper integration is possible to improve efficiency. In particular,
-pytables can be plotter without loading the entire arrays into memory beforehand. 
+the datetime tick labels.
 """
 # Major library imports
 import numpy as np
@@ -14,8 +10,9 @@ import time
 
 # Enthought imports
 from enable.api import ComponentEditor
-from traits.api import HasTraits, Instance, Dict, File, Bool
-from traitsui.api import View, Item, VGroup
+from traits.api import HasTraits, Instance, Dict, File, Bool, Enum, List, \
+    on_trait_change, Int
+from traitsui.api import View, Item, VGroup, HSplit
 
 # Chaco imports
 from chaco.api import ArrayPlotData, ToolbarPlot, Legend, PlotAxis
@@ -24,13 +21,17 @@ from chaco.tools.api import PanTool, ZoomTool, LegendTool, LegendHighlighter
 from chaco.scales.api import CalendarScaleSystem
 from chaco.scales_tick_generator import ScalesTickGenerator
 
+# Use of Pandas in Chaco
 import chaco_pandas
 reload(chaco_pandas)
-from chaco_pandas import pandas_hdf_to_data_dict, pandas2array_dict, \
-    DateRange2labels
+from chaco_pandas import pandas_hdf_to_data_dict, pandas2array_dict
 
 colors = ["black", "green", "lightgreen", "blue", "lightblue", "red",
           "pink", "yellow", "darkgray", "silver"]
+
+# Tool names:
+CORRELATION = "Correlation"
+MA = "Plot vs Moving averages"
 
 def attach_tools(plot):
     """ Little utility function to attach plot tools: zoom, pan and legend tools
@@ -51,21 +52,49 @@ class GSODDataPlotterView(HasTraits):
     The zoom tool allows to explore a subset of it. The legend allows to (de)select some
     timeseries.
     """
+    # UI controls
     data_file = File()
-    ts_data = Dict()
-    ts_plot = Instance(ToolbarPlot)
-    index_is_dates = Bool()
+
+    # Tool controls
+    tool_list = List([MA, CORRELATION])
+    tool_chooser = Enum(values="tool_list")
+    ts_list = List()
+    ts1_chooser = Enum(values="ts_list")
+    ts2_chooser = Enum(values="ts_list")
+    ma_window_size = Int(0) # Moving average window size (in number of observations)
     
-    traits_view = View(
-            VGroup(Item('data_file', style = 'simple', label="HDF file to load"), 
-                   Item('ts_plot', editor=ComponentEditor(size=(800, 600)), 
-                        show_label=False),), 
+    # Data
+    ts_data = Dict()
+    arr_plot_data = Instance(ArrayPlotData, ())
+    index_is_dates = Bool()
+
+    # Plots
+    ts_plot = Instance(ToolbarPlot)
+    ts_analysis_plot = Instance(ToolbarPlot)
+
+    def trait_view(self, view):
+        """ Build the view. The local namespace is 
+        """
+        return View(
+            VGroup(Item('data_file', style='simple', label="HDF file to load"), 
+                   HSplit(Item('ts_plot', editor=ComponentEditor(size=(400, 600)), 
+                               show_label=False),
+                          VGroup(Item('tool_chooser', show_label = True, label="Choose tool"),
+                                 Item('ts1_chooser', label="TS 1"),
+                                 Item('ts2_chooser', label="TS 2",
+                                      visible_when="tool_chooser in ['%s']" % CORRELATION),
+                                 Item('ma_window_size', label="MA window size",
+                                 visible_when="tool_chooser in ['%s']" % MA),#
+                                 Item('ts_analysis_plot', editor=ComponentEditor(size=(400, 600)), 
+                                      show_label=False),),),
+                            ),
             title='Chaco Plot with file loader and legend highlighter',
-            width=900, height=800, resizable=True)
+            width=1300, height=800, resizable=True)
 
     def __init__(self, pandas_list = [], array_dict = {}, *args, **kw):
         """ If a (list of) pandas or a dict of arrays is passed, load them up. 
         """
+        # Initialize the analysis tool
         ts_data = {}
         super(GSODDataPlotterView, self).__init__(*args, **kw)
         if not isinstance(pandas_list, list):
@@ -76,21 +105,28 @@ class GSODDataPlotterView(HasTraits):
         if array_dict:
             ts_data.update(ts_dict)
         self.ts_data = ts_data # Now trigger the plot redraw
+        
 
     def _data_file_changed(self):
        """ Update the data from the HDF5 file.
        """
-       self.ts_data = pandas_hdf_to_data_dict(self.data_file)
+       self.ts_data, self.index_is_dates = pandas_hdf_to_data_dict(self.data_file)
        assert("index" in self.ts_data)
 
     def _ts_data_changed(self):
-        """ Dataset has changed: update the plot.
-        ENH: add the possibility to pass a dict to ArrayPlotData.
+        """ Dataset has changed: update the plots.
+        ENH: add the possibility to pass a dict to ArrayPlotData constructor.
         """
-        arr_data = ArrayPlotData()
         for k,v in self.ts_data.items():
-            arr_data.set_data(k,v)
-        self.ts_plot = ToolbarPlot(arr_data)
+            self.arr_plot_data.set_data(k,v)
+        self.ts_list = self.ts_data.keys()
+        self.update_main_plot()
+        self.update_analysis_plot()
+    
+    def update_main_plot(self):
+        """ Build main plot
+        """
+        self.ts_plot = ToolbarPlot(self.arr_plot_data)
         for i, k in enumerate([k for k in self.ts_data.keys() if k != "index"]):
             self.ts_plot.plot(("index", k), name = k, color = colors[i % len(colors)])
         if self.index_is_dates:
@@ -106,9 +142,26 @@ class GSODDataPlotterView(HasTraits):
         else:
             self.ts_plot.title = "Time series visualization"
         attach_tools(self.ts_plot)
-    
+
+    @on_trait_change("tool_chooser, ts1_chooser, ts2_chooser, ma_window_size")
+    def update_analysis_plot(self):
+        """ Build analysis plot
+        """
+        self.ts_analysis_plot = ToolbarPlot(self.arr_plot_data)
+        if self.tool_chooser == CORRELATION:
+            self.ts_analysis_plot.plot((self.ts1_chooser, self.ts2_chooser), type = "scatter", color = "blue")
+            self.ts_analysis_plot.title = "%s plotted against %s" % (self.ts1_chooser, self.ts2_chooser)
+            self.ts_analysis_plot.index_axis.title = self.ts1_chooser
+            self.ts_analysis_plot.value_axis.title = self.ts2_chooser
+        elif self.tool_chooser == MA and self.ma_window_size > 0:
+            ts1_ma = pandas.rolling_mean(self.arr_plot_data.get_data(self.ts1_chooser),
+                                         self.ma_window_size)
+            self.arr_plot_data.set_data("ts1_ma", ts1_ma)
+            self.ts_analysis_plot.plot(("index", self.ts1_chooser), type = "scatter", color = "blue")
+            self.ts_analysis_plot.plot(("index", "ts1_ma"), type = "line", color = "blue")
+        
 if __name__ == "__main__":
-    viewer = GSODDataPlotterView(data_file = "test.h5")
+    viewer = GSODDataPlotterView() #data_file = "test.h5"
     viewer.configure_traits()
 
 
