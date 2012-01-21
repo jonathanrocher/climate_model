@@ -5,7 +5,7 @@ import pandas
 import tables
 import numpy as np
 import time
-import warning
+import warnings
 
 def pandas_hdf_to_data_dict2(filename):
     """ Explore the content of the pandas HDFStore (HDF5) and create a dictionary
@@ -67,9 +67,10 @@ def pandas_hdf_to_data_dict2(filename):
     # FIXME: do this by creating a 2D np array?
     for k,v in index_dict.items()[1:]:
         if not np.all(v.read() == arr_index0):
-            warning.warn("Error: the index of %s is not equal to the index of %s" % (k, key0))
-    h5file.close()
-    return content, getattr(index0, 'kind', "numeric")
+            warnings.warn("Error: the index of %s is not equal to the index of %s" % (k, key0))
+            #h5file.close()
+    index_is_dates = getattr(index0._v_attrs, 'kind', "numeric") == "datetime"
+    return content, index_is_dates
 
 def pandas_hdf_to_data_dict1(filename):
     """ Explore the content of the pandas store (HDF5) and create a dictionary
