@@ -362,7 +362,8 @@ class GSODDataReader(HasTraits):
                                       station_name, location_WMO, location_WBAN,
                                       country, state)
             if len(filtered) == 1:
-                return collect_year_at_loc(year, location_WMO, location_WBAN)
+                return collect_year_at_loc(year, location_WMO = filtered['USAF'],
+                                           location_WBAN = filtered['WBAN'])
             else:
                 data = {}
                 for layer in filtered:
