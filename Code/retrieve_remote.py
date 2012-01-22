@@ -8,6 +8,7 @@ def info2filepath(year, location_WMO = None, location_WBAN = None, data_source =
     """ Convert a year and location code to a filename where that data is
     stored. If no location is provided, convert the year to the tar file 
     """
+    print location_WMO, location_WBAN
     if data_source == 'NCDC':
         if location_WMO is not None and location_WBAN is not None:
             # Force the format to have WMO loc on 6 char and WBAN on 5. 

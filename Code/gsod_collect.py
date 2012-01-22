@@ -28,9 +28,12 @@ import os
 import numpy as np
 import pandas
 from distutils.dir_util import mkpath
+import warnings
 
 from traits.api import HasTraits, Bool, Instance, Enum, Array, Dict
 
+import retrieve_remote
+reload(retrieve_remote)
 from retrieve_remote import retrieve_file, info2filepath
 from file_sys_util import untar, unzip
 
@@ -222,6 +225,8 @@ def collect_year_at_loc(year, location_WMO, location_WBAN, data_source = 'NCDC')
     filename = info2filepath(year, location_WMO, location_WBAN)
     folder_location = os.path.join("Data", "GSOD", "gsod_"+str(year))
     filepath = os.path.join(folder_location, filename)
+    filepath_found = True
+    
     if not os.path.exists(filepath):
         zipped_filepath = filepath+".gz"
         if os.path.exists(zipped_filepath):
@@ -229,7 +234,11 @@ def collect_year_at_loc(year, location_WMO, location_WBAN, data_source = 'NCDC')
         elif os.path.exists(os.path.join(folder_location, "gsod_"+str(year)+".tar")):
             # Possible not to rely on outside servers... 
             untar(os.path.join(folder_location, "gsod_"+str(year)+".tar"))
-            unzip(zipped_filepath)
+            if os.path.isfile(zipped_filepath):
+                unzip(zipped_filepath)
+            else:
+                warnings.warn("File %s is missing from the dataset: skipping this location." % zipped_filepath)
+                filepath_found = False
         else:
             target_folder = "Data/GSOD/gsod_"+str(year)
             if not os.path.exists(target_folder):
@@ -242,7 +251,10 @@ def collect_year_at_loc(year, location_WMO, location_WBAN, data_source = 'NCDC')
             remote_target = os.path.join(remote_location, filename+".gz")
             retrieve_file(data_source, remote_target, zipped_filepath)
             unzip(zipped_filepath)
-    return datafile2pandas(filepath)
+        
+    if filepath_found:
+        return datafile2pandas(filepath)
+
 
 def count_op_files(folder):
     return len([filename for filename in os.listdir(folder) if os.path.splitext(filename)[1] in [".op", ".gz"]])
@@ -362,15 +374,17 @@ class GSODDataReader(HasTraits):
                                       station_name, location_WMO, location_WBAN,
                                       country, state)
             if len(filtered) == 1:
-                return collect_year_at_loc(year, location_WMO = filtered['USAF'],
-                                           location_WBAN = filtered['WBAN'])
+                return collect_year_at_loc(year, location_WMO = filtered['USAF'][0],
+                                           location_WBAN = filtered['WBAN'][0])
             else:
                 data = {}
                 for layer in filtered:
-                     df = collect_year_at_loc(year, layer['USAF'], layer['WBAN'])
-                     # reindex over the entire year in case there are missing values
-                     df = df.reindex(pandas.DateRange(start = '1/1/%s' % year, end = '31/12/%s' % year,
-                                              offset = pandas.datetools.day))
-                     key = str(layer['USAF'])+"-"+str(layer['WBAN'])+"-"+str(year)
-                     data[key] = df
+                    df = collect_year_at_loc(year, layer['USAF'], layer['WBAN'])
+                    # reindex over the entire year in case there are missing values
+                    if df is None:
+                        continue
+                    df = df.reindex(pandas.DateRange(start = '1/1/%s' % year, end = '31/12/%s' % year,
+                                                     offset = pandas.datetools.day))
+                    key = str(layer['USAF'])+"-"+str(layer['WBAN'])+"-"+str(year)
+                    data[key] = df
                 return pandas.Panel(data)
