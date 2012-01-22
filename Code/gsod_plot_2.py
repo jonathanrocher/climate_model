@@ -107,7 +107,7 @@ timeseries.
         attach_tools(self.ts_plot)
     
 if __name__ == "__main__":
-    viewer = GSODDataPlotterView(data_file = "test.h5")
+    viewer = GSODDataPlotterView()
     viewer.configure_traits()
 
 

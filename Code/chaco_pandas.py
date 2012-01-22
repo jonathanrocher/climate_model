@@ -47,12 +47,13 @@ def pandas_hdf_to_data_dict2(filename):
             index_dict[key] = group.index
         elif pandas_type == 'frame':
             index_dict[key] = group.axis1
-            data = group.block0_values.read()
+            data = group.block0_values.read()[0]
             for i, col_name in enumerate(group.axis0):
+                print i
                 content[key+"_"+col_name] = data[i]
         elif pandas_type == 'wide':
             index_dict[key] = group.axis1
-            data = group.block0_values.read()
+            data = group.block0_values.read()[0]
             for i, item_name in enumerate(group.axis0):
                 for j, col_name in enumerate(group.axis2):
                     entry = key+"_"+item_name+"_"+col_name

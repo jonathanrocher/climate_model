@@ -40,7 +40,13 @@ from file_sys_util import untar, unzip
 # FTP successful return code
 OUT_CWD_SUCCESS = '250 CWD command successful'
 OUT_LS_SUCCESS = '226 Transfer complete'
-    
+
+data_file_cols = ['STN---', 'WBAN', 'YEARMODA', 'TEMP', 'TEMP-count',
+                      'DEWP', 'DEWP-count', 'SLP', 'SLP-count', 'STP',
+                      'STP-count', 'VISIB', 'VISIB-count', 'WDSP',
+                      'WDSP-count', 'MXSPD', 'GUST', 'MAX', 'MIN', 'PRCP',
+                      'SNDP', 'FRSHTT']
+
 def list_WMO_locations_per_country():
     """ List the range of location for each country found in file
     NCDC-country-list.txt. The file is of the form below with a number of
@@ -190,11 +196,6 @@ def initialize_location_dict(ishdata = None):
 def datafile2pandas(filepath):
     """ Read a NCDC GSOD file into a pandas dataframe
     """
-    data_file_cols = ['STN---', 'WBAN', 'YEARMODA', 'TEMP', 'TEMP-count',
-                      'DEWP', 'DEWP-count', 'SLP', 'SLP-count', 'STP',
-                      'STP-count', 'VISIB', 'VISIB-count', 'WDSP',
-                      'WDSP-count', 'MXSPD', 'GUST', 'MAX', 'MIN', 'PRCP',
-                      'SNDP', 'FRSHTT']
     df = pandas.read_table(filepath, sep="\s*", index_col=2, parse_dates = True,
                            names = data_file_cols, skiprows = [0])
     return df
@@ -388,3 +389,18 @@ class GSODDataReader(HasTraits):
                     key = str(layer['USAF'])+"-"+str(layer['WBAN'])+"-"+str(year)
                     data[key] = df
                 return pandas.Panel(data)
+
+
+    def filter_data(panel, data_list):
+        """ Extract specific data from a pandas.Panel.
+        This is to illustrate the fancy indexing on a panel.
+
+        data_list elements must be in data_file_cols
+        """
+        if not set(data_list).issubset(set(data_file_cols)):
+            raise ValueError("%s is not a valid data type. Allowed values are %s."
+                             % (set(data_list)-set(data_file_cols), data_file_cols))
+        
+        return panel.ix[:,:,data_list]
+            
+            
