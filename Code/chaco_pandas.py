@@ -46,15 +46,21 @@ def pandas_hdf_to_data_dict2(filename):
         group = getattr(h5file.root, key)
         pandas_type = getattr(group._v_attrs, "pandas_type", "other")
         if pandas_type == 'series':
-            # only the read method forces to load the content into memory
-            content[key] = group.values.read() 
+            # only the read method forces to load the content into memory.
+            # Cast to an array of float because sometimes an object array
+            # is returned. 
+            # FIXME: how to deal with nan?
+            content[key] = np.asarray(group.values.read(), dtype = np.float)
             index_dict[key] = group.index
         elif pandas_type == 'frame':
             index_dict[key] = group.axis1
-            data = group.block0_values.read()#[0]
+            data = group.block0_values.read()
+            if isinstance(data, list):
+                # FIXME: this is a hack: pandas sometimes stores a df into a list with 1 array!!
+                data = data[0]
             assert(data.ndim == 2)
             for i, col_name in enumerate(group.axis0):
-                content[key+"_"+col_name] = data[i]
+                content[key+"_"+col_name] = np.asarray(data[i,:], dtype = np.float)
         elif pandas_type == 'wide':
             index_dict[key] = group.axis1
             data = group.block0_values.read()
@@ -62,7 +68,7 @@ def pandas_hdf_to_data_dict2(filename):
             for i, item_name in enumerate(group.axis0):
                 for j, col_name in enumerate(group.axis2):
                     entry = key+"_"+item_name+"_"+col_name
-                    content[entry] = data[i,:,j]
+                    content[entry] = np.asarray(data[i,:,j], dtype = np.float)
         else:
             raise ValueError("The group found in the file %s is not a standard type." % filename)
 

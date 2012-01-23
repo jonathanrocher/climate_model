@@ -36,8 +36,7 @@ def pandas_hdf_to_data_dict(filename):
     """
     store = pandas.HDFStore(filename)
     pandas_list = [(key, store[key]) for key in store.handle.root._v_children.keys()]
-    
-    return pandas2array_dict(pandas_list, names = names)
+    return pandas2array_dict(pandas_list)
 
 def pandas2array_dict(pandas_list, names = []):
     """ Convert a list of pandas into a dict of arrays for plotting.

@@ -1,11 +1,8 @@
 """ Implement a Chaco data plotter that loads pandas data from an hdf5 file.
 The plotter contains zoom, pan, and legend highlighter tools and preserve
-the tick labels .
-
-WARNING: This is an simple implementation that simply uses the API for pytables
-and Chaco. A deeper integration is possible to improve efficiency. In particular,
-pytables can be plotter without loading the entire arrays into memory beforehand.
+the tick labels.
 """
+
 # Major library imports
 import numpy as np
 from numpy.random import randn
@@ -64,7 +61,7 @@ timeseries.
 
     def __init__(self, pandas_list = [], array_dict = {}, *args, **kw):
         """ If a (list of) pandas or a dict of arrays is passed, load them up.
-"""
+        """
         ts_data = {}
         super(GSODDataPlotterView, self).__init__(*args, **kw)
         if not isinstance(pandas_list, list):
@@ -86,12 +83,14 @@ timeseries.
         """ Dataset has changed: update the plot.
         ENH: add the possibility to pass a dict to ArrayPlotData.
         """
+        print "data changed: updating the plot..."
         arr_data = ArrayPlotData()
         for k,v in self.ts_data.items():
             arr_data.set_data(k,v)
         self.ts_plot = ToolbarPlot(arr_data)
         for i, k in enumerate([k for k in self.ts_data.keys() if k != "index"]):
             self.ts_plot.plot(("index", k), name = k, color = colors[i % len(colors)])
+            break
         if self.index_is_dates:
             # Index was an array of datetime: overwrite the x axis
             self.ts_plot.x_axis = None
