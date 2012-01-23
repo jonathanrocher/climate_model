@@ -90,7 +90,6 @@ timeseries.
         self.ts_plot = ToolbarPlot(arr_data)
         for i, k in enumerate([k for k in self.ts_data.keys() if k != "index"]):
             self.ts_plot.plot(("index", k), name = k, color = colors[i % len(colors)])
-            break
         if self.index_is_dates:
             # Index was an array of datetime: overwrite the x axis
             self.ts_plot.x_axis = None
