@@ -1,4 +1,8 @@
 """ Utilities for deal with pandas objects.
+
+FIXME: Is there a smarter way for implement things in the out-of-core
+paradigm (a la memmap) instead of reading everything into memory? It is likely
+not going to fit inside CPU cache so that paradigm may be useful. 
 """
 
 import pandas
