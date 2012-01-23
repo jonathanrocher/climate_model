@@ -52,12 +52,13 @@ def pandas_hdf_to_data_dict2(filename):
         elif pandas_type == 'frame':
             index_dict[key] = group.axis1
             data = group.block0_values.read()[0]
+            assert(data.shape == 2)
             for i, col_name in enumerate(group.axis0):
-                print i
                 content[key+"_"+col_name] = data[i]
         elif pandas_type == 'wide':
             index_dict[key] = group.axis1
-            data = group.block0_values.read()[0]
+            data = group.block0_values.read()
+            assert(data.shape == 3)
             for i, item_name in enumerate(group.axis0):
                 for j, col_name in enumerate(group.axis2):
                     entry = key+"_"+item_name+"_"+col_name
@@ -73,8 +74,8 @@ def pandas_hdf_to_data_dict2(filename):
     for k,v in index_dict.items()[1:]:
         if not np.all(v.read() == arr_index0):
             warnings.warn("Error: the index of %s is not equal to the index of %s" % (k, key0))
-    h5file.close()
     index_is_dates = getattr(index0._v_attrs, 'kind', "numeric") == "datetime"
+    h5file.close()
     return content, index_is_dates
 
 def pandas_hdf_to_data_dict1(filename):
