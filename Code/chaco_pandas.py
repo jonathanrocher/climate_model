@@ -69,7 +69,7 @@ def pandas_hdf_to_data_dict2(filename):
     for k,v in index_dict.items()[1:]:
         if not np.all(v.read() == arr_index0):
             warnings.warn("Error: the index of %s is not equal to the index of %s" % (k, key0))
-            #h5file.close()
+    h5file.close()
     index_is_dates = getattr(index0._v_attrs, 'kind', "numeric") == "datetime"
     return content, index_is_dates
 
