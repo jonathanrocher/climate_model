@@ -293,18 +293,25 @@ def search_station_codes(part_station_name, location_dict):
     return [(key, location_dict[key]) for key in location_dict.keys()
             if key.lower().find(part_station_name.lower()) != -1]
 
-def search_station(location_db, location_dict, part_station_name = None, WMO_location = None,
+def search_station(location_db, location_dict, station_name = None, exact_station = False, WMO_location = None,
                    WBAN_location = None, country_code = None, state_code = None):
     """ Search for a station from part of its name, its location, its country code and/or its state.
+    Inputs:
+    - location_db, struct array: database of locations and all its metadata (location codes,
+      country, state, coord, elevation, ...). It is generated from the function
+      read_ish_history() for the NCDC data source. 
     """
     L = len(location_db)
     mask = np.ones(L, dtype = np.bool)
-    if part_station_name:
-        # Allow for partial station name
-        match_station_idx = [idx for idx,name in enumerate(location_db['STATION_NAME'])
-                             if part_station_name.lower() in name.lower()]
-        match_station = np.zeros(L, dtype = np.bool)
-        match_station[match_station_idx] = True
+    if station_name:
+        if exact_station:
+            match_station = location_db['STATION_NAME'] == station_name
+        else:
+            # Allow for partial station name
+            match_station_idx = [idx for idx,name in enumerate(location_db['STATION_NAME'])
+                                 if station_name.lower() in name.lower()]
+            match_station = np.zeros(L, dtype = np.bool)
+            match_station[match_station_idx] = True
         mask = mask & match_station
     if WMO_location:
         match_wmo = location_db['USAF'] == WMO_location
@@ -340,19 +347,23 @@ class GSODDataReader(HasTraits):
     def search_station_codes(self, part_station_name):
         return search_station_codes(part_station_name, self.location_dict)
 
-    def search_station(self, station_name = None, location_WMO = None,
+    def search_station(self, station_name = None, exact_station = False, location_WMO = None,
                        location_WBAN = None, country = None,
                        state = None):
         return search_station(self.location_db, self.location_dict,
-                              station_name, location_WMO, location_WBAN,
+                              station_name, exact_station, location_WMO, location_WBAN,
                               country, state)
 
-    def collect_year(self, year=None, station_name=None, location_WMO=None,
+    def collect_year(self, year=None, station_name=None, exact_station = False, location_WMO=None,
                      location_WBAN=None, country=None, state=None):
         """ Process a request for data.
 
         Inputs:
         - year, int. If no year is passed, choose the current one.
+        - station_name, str. (Part of) Name of the station to collect data at. The station
+        names are search for in the ish-history txt file stored in self.location_db.
+        - exact_station, bool. If false, all station names are search and the ones
+          containing the string station_name are selected.
         - location WMO code and/or WBAN code, int, int. If no location is selected,
         collect the yearly data for all locations.
 
@@ -372,7 +383,7 @@ class GSODDataReader(HasTraits):
             return collect_year(year)
         else:
             filtered = search_station(self.location_db, self.location_dict,
-                                      station_name, location_WMO, location_WBAN,
+                                      station_name, exact_station, location_WMO, location_WBAN,
                                       country, state)
             if len(filtered) == 1:
                 return collect_year_at_loc(year, location_WMO = filtered['USAF'][0],
@@ -391,7 +402,7 @@ class GSODDataReader(HasTraits):
                 return pandas.Panel(data)
 
 
-    def filter_data(panel, data_list):
+    def filter_data(self, panel, data_list):
         """ Extract specific data from a pandas.Panel.
         This is to illustrate the fancy indexing on a panel.
 
@@ -404,3 +415,7 @@ class GSODDataReader(HasTraits):
         return panel.ix[:,:,data_list]
             
             
+if __name__ == "__main__":
+    dr = GSODDataReader()
+    dr.search_station("pari", country = "FR")
+    dr.collect_year(2007, station_name = "PARIS", country = "FR")
