@@ -18,10 +18,10 @@ a) locations:
 - Each station is identified by a unique set of (WMO, WBAN) codes.
 
 TO DO LIST:
-TODO: Add the possibility to load several years for one location inside the same DF.
-TODO: Add the possibility to filter on the columns/type of information requested.
+TODO: Add the possibility to load several years for one location inside the same DF/panel.
 TODO: Add other data sources such as weather underground, data.gov, ... and allow merging data. 
-TODO: Build a UI on top of all of this. A simple one just to search and store the files locally. another one integrating an ipython prompt to load the data and be able to play with them afterwards.
+TODO: Build a UI on top of all of this. A simple one just to search and store the files locally.
+Another one integrating an ipython prompt to load the data and be able to play with them afterwards.
 """
 import datetime
 import os
@@ -30,7 +30,7 @@ import pandas
 from distutils.dir_util import mkpath
 import warnings
 
-from traits.api import HasTraits, Bool, Instance, Enum, Array, Dict
+from traits.api import HasTraits, Instance, Enum, Array, Dict
 
 import retrieve_remote
 reload(retrieve_remote)
