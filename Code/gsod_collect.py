@@ -1,6 +1,6 @@
 """ GSOD data collection tool.
 
-Instruction:
+Instruction for accessing NCDC data:
 a) Enter:  open ftp.ncdc.noaa.gov    
 b) Login is:  ftp
 c) Password is:  your email address
@@ -29,8 +29,7 @@ import datetime
 import os
 import numpy as np
 import pandas
-from distutils.dir_util import mkpath
-import warnings
+ximport warnings
 
 from traits.api import HasTraits, Instance, Enum, Array, Dict
 
@@ -246,8 +245,7 @@ def collect_year_at_loc(year, location_WMO, location_WBAN, data_source = 'NCDC')
             target_folder = "Data/GSOD/gsod_"+str(year)
             if not os.path.exists(target_folder):
                 print "Creating locally the folder %s." % target_folder
-                created = mkpath(target_folder)
-                if len(created) == 0: raise OSError("Failed creating %s" % target_folder)
+                os.mkdir(target_folder)
             # Download the file from NCDC
             if data_source == 'NCDC':
                 remote_location = str(year)

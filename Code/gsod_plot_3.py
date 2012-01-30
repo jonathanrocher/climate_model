@@ -8,7 +8,8 @@ FIXME: datetime tick label not working anymore!
 TODO list:
 - Catch the closing of the window and close the hdf file
 - Rethink the layout of the window.
-- Add more commonly used tools on these timeseries. 
+- Add more commonly used tools on these timeseries.
+- support netCDF and other self describing files in addition to HDF
 - Embed into a general application which contains the gsod_collect script to make
 a end-to-end mini-application with an ipython prompt. Use envisage task (or canopy?). 
 Keep it simple for educational purposes.
@@ -173,7 +174,7 @@ class GSODDataPlotterView(HasTraits):
             self.ts_analysis_plot.plot(("index", "ts1_ma"), type = "line", color = "blue")
         
 if __name__ == "__main__":
-    viewer = GSODDataPlotterView() #data_file = "test.h5"
+    viewer = GSODDataPlotterView() #data_file = "temp_data_paris.h5"
     viewer.configure_traits()
 
 
