@@ -29,7 +29,7 @@ import datetime
 import os
 import numpy as np
 import pandas
-ximport warnings
+import warnings
 
 from traits.api import HasTraits, Instance, Enum, Array, Dict
 
