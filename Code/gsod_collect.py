@@ -41,7 +41,7 @@ from file_sys_util import untar, unzip
 OUT_CWD_SUCCESS = '250 CWD command successful'
 OUT_LS_SUCCESS = '226 Transfer complete'
 
-data_file_cols = ['STN---', 'WBAN', 'YEARMODA', 'TEMP', 'TEMP-count',
+DATA_FILE_COLS = ['STN---', 'WBAN', 'YEARMODA', 'TEMP', 'TEMP-count',
                       'DEWP', 'DEWP-count', 'SLP', 'SLP-count', 'STP',
                       'STP-count', 'VISIB', 'VISIB-count', 'WDSP',
                       'WDSP-count', 'MXSPD', 'GUST', 'MAX', 'MIN', 'PRCP',
@@ -197,7 +197,7 @@ def datafile2pandas(filepath):
     """ Read a NCDC GSOD file into a pandas dataframe
     """
     df = pandas.read_table(filepath, sep="\s*", index_col=2, parse_dates = True,
-                           names = data_file_cols, skiprows = [0])
+                           names = DATA_FILE_COLS, skiprows = [0])
     return df
 
 def datafolder2pandas(folderpath):
@@ -402,20 +402,34 @@ class GSODDataReader(HasTraits):
                 return pandas.Panel(data)
 
 
-    def filter_data(self, panel, data_list):
-        """ Extract specific data from a pandas.Panel.
-        This is to illustrate the fancy indexing on a panel.
+def filter_data(panel, data_list):
+    """ Extract specific data from a panel: reduce the minor axis to only the
+    type of data listed in data_list (must be in DATA_FILE_COLS)
 
-        data_list elements must be in data_file_cols
-        """
-        if not set(data_list).issubset(set(data_file_cols)):
-            raise ValueError("%s is not a valid data type. Allowed values are %s."
-                             % (set(data_list)-set(data_file_cols), data_file_cols))
+    Note: This is to illustrate the fancy indexing on a panel.
+    """
+    # Convert 1 element to a list
+    if isinstance(data_list, str):
+        data_list = [data_list]
         
-        return panel.ix[:,:,data_list]
-            
+    if not set(data_list).issubset(set(DATA_FILE_COLS)):
+        raise ValueError("%s is not a valid data type. Allowed values are %s."
+                         % (set(data_list)-set(DATA_FILE_COLS), DATA_FILE_COLS))
+    result = panel.ix[:,:,data_list]
+    #if len(data_list) == 1:
+    # convert to a dataframe?
+    #else:
+    return result
             
 if __name__ == "__main__":
     dr = GSODDataReader()
+    dr.search_station("austin", country = "US", state = "TX")
     dr.search_station("pari", country = "FR")
-    dr.collect_year(2007, station_name = "PARIS", country = "FR")
+    paris_data =  dr.collect_year(2007, station_name = "PARIS", country = "FR")
+    paris_temp_data = filter_data(paris_data, "TEMP")
+    
+    store = pandas.HDFStore("paris_temp_data.h5", "w")
+    store["data"] = paris_temp_data
+    store.close()
+
+    # See gsod_plot_3 for visualization of the content of that pandas or file. 
