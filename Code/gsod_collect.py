@@ -19,7 +19,9 @@ a) locations:
 
 TO DO LIST:
 TODO: Add the possibility to load several years for one location inside the same DF/panel.
-TODO: Add other data sources such as weather underground, data.gov, ... and allow merging data. 
+TODO: Add other data sources such as weather underground, arm.gov, data.gov, ... and allow
+merging data. Create a DataSource class to unify how data collecting classes interact with
+data sources?
 TODO: Build a UI on top of all of this. A simple one just to search and store the files locally.
 Another one integrating an ipython prompt to load the data and be able to play with them afterwards.
 """
