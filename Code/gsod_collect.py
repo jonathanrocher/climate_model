@@ -14,29 +14,40 @@ e) Annual files:
 
 Background information:
 a) locations:
-- WMO location codes are also named 'USAF'. They are distinct from the WBAN location code. 
+- WMO location codes are also named 'USAF'. They are distinct from the WBAN
+location code. 
 - Each station is identified by a unique set of (WMO, WBAN) codes.
 
+###############################################################################
 TO DO LIST:
-TODO: Add the possibility to load several years for one location inside the same DF/panel.
-TODO: Add other data sources such as weather underground, arm.gov, data.gov, ... and allow
-merging data. Create a DataSource class to unify how data collecting classes interact with
-data sources?
-TODO: Build a UI on top of all of this. A simple one just to search and store the files locally.
-Another one integrating an ipython prompt to load the data and be able to play with them afterwards.
+###############################################################################
+TODO: Add the possibility to load several years for one location inside the
+same DF/panel.
+TODO: Add other data sources such as weather underground, arm.gov, data.gov,
+... and allow merging data. Create a DataSource class to unify how data
+collecting classes interact with data sources?
+TODO: Allow for custom ftp and opeDAP retrieval
+TODO: Build a UI on top of all of this. A simple one just to search and store
+the files locally. Another one integrating an ipython prompt to load the data
+and be able to play with them afterwards.
 """
+
+# Std lib imports
 import datetime
 import os
 import numpy as np
 import pandas
 import warnings
 
+# ETS imports
 from traits.api import HasTraits, Instance, Enum, Array, Dict
 
-import retrieve_remote
-reload(retrieve_remote)
+# Local imports
 from retrieve_remote import retrieve_file, info2filepath
 from file_sys_util import untar, unzip
+from extend_pandas import append_panels
+
+###############################################################################
 
 # FTP successful return code
 OUT_CWD_SUCCESS = '250 CWD command successful'
@@ -47,6 +58,8 @@ DATA_FILE_COLS = ['STN---', 'WBAN', 'YEARMODA', 'TEMP', 'TEMP-count',
                       'STP-count', 'VISIB', 'VISIB-count', 'WDSP',
                       'WDSP-count', 'MXSPD', 'GUST', 'MAX', 'MIN', 'PRCP',
                       'SNDP', 'FRSHTT']
+
+###############################################################################
 
 def list_WMO_locations_per_country():
     """ List the range of location for each country found in file
@@ -401,7 +414,33 @@ class GSODDataReader(HasTraits):
                     data[key] = df
                 return pandas.Panel(data)
 
+    def collect_data(self, year_start = None, year_end = None, year_list=[],
+                station_name=None, exact_station = False, location_WMO=None,
+                location_WBAN=None, country=None, state=None):
+        """ Process a request for data possibly over multiple years.
 
+        Inputs:
+        - year_list, list(int). The list of years the data should be collected
+        - other inputs are identical to collect_year method
+
+        Output:
+        - pandas data structure: 2D DataFrame if only one location is
+        requested, 3D (panel) if multiple locations are requested
+        """
+        if len(year_list) == 0:
+            year_list = range(year_start, year_end, 1)
+
+        result = None
+        for year in year_list:
+            year_data = self.collect_year(year, station_name, exact_station, location_WMO,
+                                          location_WBAN, country, state)
+            if result:
+                result = append_panels(result, year_data)
+            else:
+                result = year_data
+        return result
+            
+            
 def filter_data(panel, data_list):
     """ Extract specific data from a panel: reduce the minor axis to only the
     type of data listed in data_list (must be in DATA_FILE_COLS)
@@ -422,6 +461,7 @@ def filter_data(panel, data_list):
     return result
             
 if __name__ == "__main__":
+    # Sample code for usage description
     dr = GSODDataReader()
     dr.search_station("austin", country = "US", state = "TX")
     dr.search_station("pari", country = "FR")

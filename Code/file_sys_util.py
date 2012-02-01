@@ -24,3 +24,4 @@ def untar(filepath):
     target_folder = os.path.split(filepath)[0]
     arch.extractall(path = target_folder)
     arch.close()
+
