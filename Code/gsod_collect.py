@@ -453,32 +453,59 @@ class GSODDataReader(HasTraits):
         return result
             
             
-def filter_data(panel, measurements = [],
-                date_start = None, date_end = None, offset = None,
-                locations = []):
+def filter_data(panel, locations = [], measurements = [],
+                date_start = None, date_end = None,
+                offset = None, downsampling_method = ""):
     """ Extract specific data from a panel: reduce the minor axis to only the
-    type of data listed in data_list (must be in DATA_FILE_COLS), or reduce
+    type of data listed in data_list, or reduce
     the major axis to a smaller range of dates or reduce the number of items
-    to a list of locations. 
+    to a list of locations.
 
+    Inputs:
+    - measurements, list(str).  List of column names to select (must be in
+    DATA_FILE_COLS)
+    - date_start, date_end. start and end dates for slicing in the time
+    dimension. Can be a datetime object or a string in the format YYYY/MM/DD.
+    - offset. Used to disseminate data or to downsample data if a
+    downsampling_method is given. NOT IMPLEMENTED
+    - downsampling_method, str. Method to downsample the dataset. Can be
+    'average', ... NOT IMPLEMENTED
+
+    Outputs:
+    - slice/part of the original panel.
+    
     Note: This is to illustrate the fancy indexing on a panel.
     """
-    # Convert 1 element to a list
-    if isinstance(measurement_list, str):
-        measurement_list = [measurement_list]
-    if isinstance(location_list, str):
-        location_list = [location_list]
+    #####################
+    # Rationalize inputs
+    #####################
+    if isinstance(measurements, str):
+        measurements = [measurements]
+    if isinstance(locations, str):
+        locations = [locations]
+    if date_end and not date_start:
+        date_start = panel.major_axis[0]
+    if date_start and not date_end:
+        date_end = panel.major_axis[-1]
 
+    if isinstance(date_start, str):
+        date_start = datetime.datetime.strptime(date_start, '%Y/%m/%d')
+    if isinstance(date_end, str):
+        date_end = datetime.datetime.strptime(date_end, '%Y/%m/%d')
+        
+    ##########
+    # FILTERS
+    #########
     # Filter items
-    if location_list:
-        panel = panel.filter(location_list)
+    if locations:
+        panel = panel.filter(locations)
 
     # Filter major and minor axis
-    if not set(measurement_list).issubset(set(DATA_FILE_COLS)):
+    if not set(measurements).issubset(set(DATA_FILE_COLS)):
         raise ValueError("%s is not a valid data type. Allowed values are %s."
                          % (set(measurements)-set(DATA_FILE_COLS), DATA_FILE_COLS))
     if measurements:
-        result = panel.ix[:,date_start:date_end,measurements]
+        result = panel.ix[:,date_start:date_end, measurements]
     else:
         result = panel.ix[:,date_start:date_end,:]
     return result
@@ -489,7 +516,7 @@ if __name__ == "__main__":
     dr.search_station("austin", country = "US", state = "TX")
     dr.search_station("pari", country = "FR")
     paris_data =  dr.collect_data([2007, 2008], station_name = "PARIS", country = "FR")
-    paris_temp_data = filter_data(paris_data, ["TEMP", "VISIB"])
+    paris_temp_data = filter_data(paris_data, measurements = ["TEMP", "VISIB"])
     
     store = pandas.HDFStore("paris_temp_data.h5", "w")
     store["data"] = paris_temp_data
