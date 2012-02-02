@@ -295,8 +295,16 @@ def collect_year(year, data_source = 'NCDC'):
             remote_target = os.path.join(remote_location, filename)
             retrieve_file(data_source, remote_target, local_filepath)
         untar(local_filepath)
-    
-    return datafolder2pandas(local_folderpath)
+    try:
+        panda = datafolder2pandas(local_folderpath)
+    except MemoryError:
+        # For years where there is a large amount of data, it is not possible to load everything in memory
+        # FIXME: load the data in a memory mapped/pytable stored pandas in this
+        # case? Clarify because the memory error is thrown by mmap. It may be
+        # doing this already, but be running into mmap limitations?
+        warnings.warn("The year %s contains too much data to be loaded into a single object in memory")
+        panda = None
+    return panda
 
 def search_station_codes(part_station_name, location_dict):
     """ Search for all station names that contain the string part_station_name
@@ -369,7 +377,7 @@ class GSODDataReader(HasTraits):
 
     def collect_year(self, year=None, station_name=None, exact_station = False, location_WMO=None,
                      location_WBAN=None, country=None, state=None):
-        """ Process a request for data.
+        """ Process a request for data for a given year at a given location optionaly.
 
         Inputs:
         - year, int. If no year is passed, choose the current one.
@@ -386,7 +394,7 @@ class GSODDataReader(HasTraits):
         """
         if year is None:
             year = datetime.datetime.today().year
-            print "No year was provided: using the current one (%s)" % year
+            warnings.warn("No year was provided: using the current one (%s)" % year)
             
         no_location = (location_WMO is None and location_WBAN is None
                        and station_name is None and country is None and
@@ -410,17 +418,19 @@ class GSODDataReader(HasTraits):
                         continue
                     df = df.reindex(pandas.DateRange(start = '1/1/%s' % year, end = '31/12/%s' % year,
                                                      offset = pandas.datetools.day))
-                    key = str(layer['USAF'])+"-"+str(layer['WBAN'])+"-"+str(year)
+                    key = str(layer['USAF'])+"-"+str(layer['WBAN'])
                     data[key] = df
                 return pandas.Panel(data)
 
-    def collect_data(self, year_start = None, year_end = None, year_list=[],
+    def collect_data(self, year_list=[], year_start = None, year_end = None, 
                 station_name=None, exact_station = False, location_WMO=None,
                 location_WBAN=None, country=None, state=None):
-        """ Process a request for data possibly over multiple years.
+        """ Process a request for data possibly over multiple years. If the list
+        is empty, 
 
         Inputs:
-        - year_list, list(int). The list of years the data should be collected
+        - year_list, list(int). The list of years the data should be collected.
+        - year_start, year_end, int, int. Fed to range if year_list is empty. 
         - other inputs are identical to collect_year method
 
         Output:
@@ -429,6 +439,8 @@ class GSODDataReader(HasTraits):
         """
         if len(year_list) == 0:
             year_list = range(year_start, year_end, 1)
+        else:
+            year_list.sort()
 
         result = None
         for year in year_list:
@@ -441,23 +453,34 @@ class GSODDataReader(HasTraits):
         return result
             
             
-def filter_data(panel, data_list):
+def filter_data(panel, measurements = [],
+                date_start = None, date_end = None, offset = None,
+                locations = []):
     """ Extract specific data from a panel: reduce the minor axis to only the
-    type of data listed in data_list (must be in DATA_FILE_COLS)
+    type of data listed in data_list (must be in DATA_FILE_COLS), or reduce
+    the major axis to a smaller range of dates or reduce the number of items
+    to a list of locations. 
 
     Note: This is to illustrate the fancy indexing on a panel.
     """
     # Convert 1 element to a list
-    if isinstance(data_list, str):
-        data_list = [data_list]
-        
-    if not set(data_list).issubset(set(DATA_FILE_COLS)):
+    if isinstance(measurement_list, str):
+        measurement_list = [measurement_list]
+    if isinstance(location_list, str):
+        location_list = [location_list]
+
+    # Filter items
+    if location_list:
+        panel = panel.filter(location_list)
+
+    # Filter major and minor axis
+    if not set(measurement_list).issubset(set(DATA_FILE_COLS)):
         raise ValueError("%s is not a valid data type. Allowed values are %s."
-                         % (set(data_list)-set(DATA_FILE_COLS), DATA_FILE_COLS))
-    result = panel.ix[:,:,data_list]
-    #if len(data_list) == 1:
-    # convert to a dataframe?
-    #else:
+                         % (set(measurements)-set(DATA_FILE_COLS), DATA_FILE_COLS))
+    if measurements:
+        result = panel.ix[:,date_start:date_end,measurements]
+    else:
+        result = panel.ix[:,date_start:date_end,:]
     return result
             
 if __name__ == "__main__":
@@ -465,8 +488,8 @@ if __name__ == "__main__":
     dr = GSODDataReader()
     dr.search_station("austin", country = "US", state = "TX")
     dr.search_station("pari", country = "FR")
-    paris_data =  dr.collect_year(2007, station_name = "PARIS", country = "FR")
-    paris_temp_data = filter_data(paris_data, "TEMP")
+    paris_data =  dr.collect_data([2007, 2008], station_name = "PARIS", country = "FR")
+    paris_temp_data = filter_data(paris_data, ["TEMP", "VISIB"])
     
     store = pandas.HDFStore("paris_temp_data.h5", "w")
     store["data"] = paris_temp_data

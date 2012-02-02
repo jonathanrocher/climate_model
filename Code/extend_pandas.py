@@ -29,5 +29,6 @@ def append_panels(p1,p2):
     # Dimension labels
     result_items = p1.items
     result_major_axis = np.hstack((p1.major_axis.values, p2.major_axis.values))
+    result_major_axis = pandas.Index(result_major_axis)
     result_minor_axis = p1.minor_axis
     return pandas.Panel(p3, items = result_items, major_axis = result_major_axis, minor_axis = result_minor_axis)
