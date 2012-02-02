@@ -516,10 +516,11 @@ if __name__ == "__main__":
     dr.search_station("austin", country = "US", state = "TX")
     dr.search_station("pari", country = "FR")
     paris_data =  dr.collect_data([2007, 2008], station_name = "PARIS", country = "FR")
-    paris_temp_data = filter_data(paris_data, measurements = ["TEMP", "VISIB"])
+    filtered = filter_data(paris_data, measurements = ["TEMP", "VISIB"],
+                           date_start = "2007/2/2", date_end = "2008/4/5")
     
     store = pandas.HDFStore("paris_temp_data.h5", "w")
-    store["data"] = paris_temp_data
+    store["data"] = filtered
     store.close()
 
     # See gsod_plot_3 for visualization of the content of that pandas or file. 
