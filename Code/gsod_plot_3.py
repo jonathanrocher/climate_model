@@ -33,8 +33,6 @@ from chaco.scales.api import CalendarScaleSystem
 from chaco.scales_tick_generator import ScalesTickGenerator
 
 # Use of Pandas in Chaco
-import chaco_pandas
-reload(chaco_pandas)
 from chaco_pandas import pandas_hdf_to_data_dict2, pandas2array_dict
 
 colors = ["black", "green", "red", "blue", "lightblue", "lightgreen", 

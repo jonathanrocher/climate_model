@@ -45,7 +45,7 @@ from traits.api import HasTraits, Instance, Enum, Array, Dict
 # Local imports
 from retrieve_remote import retrieve_file, info2filepath
 from file_sys_util import untar, unzip
-from extend_pandas import append_panels
+from extend_pandas import append_panels, downsample
 
 ###############################################################################
 
@@ -77,7 +77,8 @@ def list_WMO_locations_per_country():
     """
     loc_range_dict = {}
     
-    country_list_filemame = os.path.join("Data", "GSOD", "NCDC-country-list.txt")
+    country_list_filemame = os.path.join("Data", "GSOD",
+                                         "NCDC-country-list.txt")
     f_country_list = open(country_list_filemame, "r")
     line = f_country_list.readline()
     # Skip header
@@ -234,8 +235,8 @@ def datafolder2pandas(folderpath):
 def collect_year_at_loc(year, location_WMO, location_WBAN, data_source = 'NCDC'):
     """ Collect the data GSOD data file for specified location and specified
     year. Look locally for the file first. If it is not there, and its gzip
-    version is not either, use the ftp connection to retrieve it from data
-    source.
+    version is not either, untar the file if it is present and has not been
+    untared, or use the ftp connection to retrieve it from data source.
     """
     filename = info2filepath(year, location_WMO, location_WBAN)
     folder_location = os.path.join("Data", "GSOD", "gsod_"+str(year))
@@ -246,13 +247,23 @@ def collect_year_at_loc(year, location_WMO, location_WBAN, data_source = 'NCDC')
         zipped_filepath = filepath+".gz"
         if os.path.exists(zipped_filepath):
             unzip(zipped_filepath)
-        elif os.path.exists(os.path.join(folder_location, "gsod_"+str(year)+".tar")):
-            # Possible not to rely on outside servers... 
-            untar(os.path.join(folder_location, "gsod_"+str(year)+".tar"))
+        elif os.path.exists(os.path.join(folder_location,
+                                         "gsod_"+str(year)+".tar")):
+            # Possible not to rely on outside servers: untar the file if there
+            # are no op.gz or op files. If not it means that the file is
+            # missing.
+            there_are_op_files = False
+            for filename in os.listdir(folder_location):
+                if os.path.splitext(filename)[1] in [".op", ".op.gz"]:
+                    there_are_op_files = True
+                    break
+            if not there_are_op_files:
+                untar(os.path.join(folder_location, "gsod_"+str(year)+".tar"))
             if os.path.isfile(zipped_filepath):
                 unzip(zipped_filepath)
             else:
-                warnings.warn("File %s is missing from the dataset: skipping this location." % zipped_filepath)
+                warnings.warn("File %s is missing from the dataset: skipping "
+                              "this location." % zipped_filepath)
                 filepath_found = False
         else:
             target_folder = "Data/GSOD/gsod_"+str(year)
@@ -271,7 +282,8 @@ def collect_year_at_loc(year, location_WMO, location_WBAN, data_source = 'NCDC')
 
 
 def count_op_files(folder):
-    return len([filename for filename in os.listdir(folder) if os.path.splitext(filename)[1] in [".op", ".gz"]])
+    return len([filename for filename in os.listdir(folder) 
+                if os.path.splitext(filename)[1] in [".op", ".gz"]])
 
 def collect_year(year, data_source = 'NCDC'):
     """ Collect the GSOD data file for all locations for the specified
@@ -291,18 +303,21 @@ def collect_year(year, data_source = 'NCDC'):
             # tar file not present either: download it!
             if data_source == 'NCDC':
                 remote_location = str(year)
-            print "Retrieving archive %s... This may take several minutes." % local_filepath
+            print("Retrieving archive %s... This may take several minutes." 
+                  % local_filepath)
             remote_target = os.path.join(remote_location, filename)
             retrieve_file(data_source, remote_target, local_filepath)
         untar(local_filepath)
     try:
         panda = datafolder2pandas(local_folderpath)
     except MemoryError:
-        # For years where there is a large amount of data, it is not possible to load everything in memory
+        # For years where there is a large amount of data, it is not possible to
+        # load everything in memory
         # FIXME: load the data in a memory mapped/pytable stored pandas in this
         # case? Clarify because the memory error is thrown by mmap. It may be
         # doing this already, but be running into mmap limitations?
-        warnings.warn("The year %s contains too much data to be loaded into a single object in memory")
+        warnings.warn("The year %s contains too much data to be loaded into a "
+                      "single object in memory")
         panda = None
     return panda
 
@@ -314,7 +329,8 @@ def search_station_codes(part_station_name, location_dict):
     return [(key, location_dict[key]) for key in location_dict.keys()
             if key.lower().find(part_station_name.lower()) != -1]
 
-def search_station(location_db, location_dict, station_name = None, exact_station = False, WMO_location = None,
+def search_station(location_db, location_dict, station_name = None, 
+                   exact_station = False, WMO_location = None,
                    WBAN_location = None, country_code = None, state_code = None):
     """ Search for a station from part of its name, its location, its country code and/or its state.
     Inputs:
@@ -368,47 +384,53 @@ class GSODDataReader(HasTraits):
     def search_station_codes(self, part_station_name):
         return search_station_codes(part_station_name, self.location_dict)
 
-    def search_station(self, station_name = None, exact_station = False, location_WMO = None,
-                       location_WBAN = None, country = None,
-                       state = None):
+    def search_station(self, station_name = None, exact_station = False, 
+                       location_WMO = None, location_WBAN = None, 
+                       country = None, state = None):
         return search_station(self.location_db, self.location_dict,
-                              station_name, exact_station, location_WMO, location_WBAN,
-                              country, state)
+                              station_name, exact_station, location_WMO, 
+                              location_WBAN, country, state)
 
-    def collect_year(self, year=None, station_name=None, exact_station = False, location_WMO=None,
-                     location_WBAN=None, country=None, state=None):
-        """ Process a request for data for a given year at a given location optionaly.
+    def collect_year(self, year=None, station_name=None, exact_station = False, 
+                    location_WMO=None, location_WBAN=None, country=None, 
+                    state=None):
+        """ Process a request for data for a given year at a given location 
+        optionaly.
 
         Inputs:
         - year, int. If no year is passed, choose the current one.
-        - station_name, str. (Part of) Name of the station to collect data at. The station
-        names are search for in the ish-history txt file stored in self.location_db.
-        - exact_station, bool. If false, all station names are search and the ones
-          containing the string station_name are selected.
+        - station_name, str. (Part of) Name of the station to collect data at. 
+        The station names are search for in the ish-history txt file stored in 
+        self.location_db.
+        - exact_station, bool. If false, all station names are search and the 
+          ones containing the string station_name are selected.
         - location WMO code and/or WBAN code, int, int. If no location is selected,
         collect the yearly data for all locations.
 
         Output:
-        - pandas data structure: 2D DataFrame if only one location is
+        - pandas data structure: 2D (DataFrame) if only one location is
         requested, 3D (panel) if multiple locations are requested
         """
         if year is None:
             year = datetime.datetime.today().year
-            warnings.warn("No year was provided: using the current one (%s)" % year)
+            warnings.warn("No year was provided: using the current one (%s)" 
+                          % year)
             
         no_location = (location_WMO is None and location_WBAN is None
                        and station_name is None and country is None and
                        state is None)
         if no_location:
-            # Requested all data for the year that is at all locations
+            # Requested all data for the year that is at all locations. Returns
+            # a panel if it can fit in memory, and None if not. In the latter
+            # case, the data files are still stored locally. 
             return collect_year(year)
         else:
             filtered = search_station(self.location_db, self.location_dict,
                                       station_name, exact_station, location_WMO, location_WBAN,
                                       country, state)
             if len(filtered) == 1:
-                return collect_year_at_loc(year, location_WMO = filtered['USAF'][0],
-                                           location_WBAN = filtered['WBAN'][0])
+                result = collect_year_at_loc(year, location_WMO = filtered['USAF'][0],
+                                             location_WBAN = filtered['WBAN'][0])
             else:
                 data = {}
                 for layer in filtered:
@@ -416,12 +438,14 @@ class GSODDataReader(HasTraits):
                     # reindex over the entire year in case there are missing values
                     if df is None:
                         continue
-                    df = df.reindex(pandas.DateRange(start = '1/1/%s' % year, end = '31/12/%s' % year,
+                    df = df.reindex(pandas.DateRange(start = '1/1/%s' % year,
+                                                     end = '31/12/%s' % year,
                                                      offset = pandas.datetools.day))
                     key = str(layer['USAF'])+"-"+str(layer['WBAN'])
                     data[key] = df
-                return pandas.Panel(data)
-
+                result = pandas.Panel(data)
+            return result
+                
     def collect_data(self, year_list=[], year_start = None, year_end = None, 
                 station_name=None, exact_station = False, location_WMO=None,
                 location_WBAN=None, country=None, state=None):
@@ -434,7 +458,7 @@ class GSODDataReader(HasTraits):
         - other inputs are identical to collect_year method
 
         Output:
-        - pandas data structure: 2D DataFrame if only one location is
+        - pandas data structure: 2D (DataFrame) if only one location is
         requested, 3D (panel) if multiple locations are requested
         """
         if len(year_list) == 0:
@@ -444,15 +468,17 @@ class GSODDataReader(HasTraits):
 
         result = None
         for year in year_list:
-            year_data = self.collect_year(year, station_name, exact_station, location_WMO,
-                                          location_WBAN, country, state)
+            year_data = self.collect_year(year, station_name, exact_station,
+                                          location_WMO, location_WBAN, country,
+                                          state)
+            if year_data is None:
+                continue
             if result:
                 result = append_panels(result, year_data)
             else:
                 result = year_data
         return result
-            
-            
+
 def filter_data(panel, locations = [], measurements = [],
                 date_start = None, date_end = None,
                 offset = None, downsampling_method = ""):
@@ -467,14 +493,12 @@ def filter_data(panel, locations = [], measurements = [],
     - date_start, date_end. start and end dates for slicing in the time
     dimension. Can be a datetime object or a string in the format YYYY/MM/DD.
     - offset. Used to disseminate data or to downsample data if a
-    downsampling_method is given. NOT IMPLEMENTED
+    disseminate_method or downsampling_method is given. NOT IMPLEMENTED
     - downsampling_method, str. Method to downsample the dataset. Can be
     'average', ... NOT IMPLEMENTED
 
     Outputs:
     - slice/part of the original panel.
-    
-    Note: This is to illustrate the fancy indexing on a panel.
     """
     #####################
     # Rationalize inputs
@@ -493,10 +517,9 @@ def filter_data(panel, locations = [], measurements = [],
     if isinstance(date_end, str):
         date_end = datetime.datetime.strptime(date_end, '%Y/%m/%d')
         
-    ##########
+    #########
     # FILTERS
     #########
-    # Filter items
     if locations:
         panel = panel.filter(locations)
 
@@ -504,20 +527,34 @@ def filter_data(panel, locations = [], measurements = [],
     if not set(measurements).issubset(set(DATA_FILE_COLS)):
         raise ValueError("%s is not a valid data type. Allowed values are %s."
                          % (set(measurements)-set(DATA_FILE_COLS), DATA_FILE_COLS))
-    if measurements:
+    if len(measurements) > 1:
         result = panel.ix[:,date_start:date_end, measurements]
+    if len(measurements) == 1:
+        # This will automatically convert result to a DF. Passing measurements
+        # directly will result in a Panel with length 1 minor_axis
+        result = panel.ix[:,date_start:date_end, measurements[0]]
     else:
         result = panel.ix[:,date_start:date_end,:]
+
+    if offset and downsampling_method:
+        result = downsample(result, downsampling_method, offset)
     return result
             
 if __name__ == "__main__":
     # Sample code for usage description
+    import extend_pandas
+    reload(extend_pandas)
+
     dr = GSODDataReader()
     dr.search_station("austin", country = "US", state = "TX")
     dr.search_station("pari", country = "FR")
     paris_data =  dr.collect_data([2007, 2008], station_name = "PARIS", country = "FR")
-    filtered = filter_data(paris_data, measurements = ["TEMP", "VISIB"],
-                           date_start = "2007/2/2", date_end = "2008/4/5")
+    filtered = filter_data(paris_data, measurements = "TEMP",
+                           date_start = "2007/2/2", date_end = "2008/4/5",
+                           downsampling_method = "average", offset = "unique_week")
+
+    paris_data_temp = filter_data(paris_data, measurements = "TEMP")
+    paris_data_temp_downsampled = downsample(paris_data_temp, method = "average", offset = "month")
     
     store = pandas.HDFStore("paris_temp_data.h5", "w")
     store["data"] = filtered
