@@ -6,6 +6,7 @@ TODO: Contribute that to pandas project?
 import types
 import pandas
 import numpy as np
+from np.random import randint
 
 NUM2STR_MONTH = {1: "01-Jan", 2: "02-Feb", 3: "03-Mar", 4: "04-Apr", 5: "05-May", 6: "06-Jun",
                  7: "07-Jul", 8: "08-Aug", 9: "09-Sep", 10: "10-Oct", 11: "11-Nov", 12: "12-Dec"}
@@ -40,12 +41,27 @@ TODO: Add capability to add many panels at once.
     return pandas.Panel(p3, items = result_items, major_axis = result_major_axis, minor_axis = result_minor_axis)
 
 
+def rand_sample(arr):
+    """ Select a random value inside an array
+    """
+    ind = randint(0,len(arr))
+    return arr[ind]
+
+def select_first(arr):
+    """ Select a random value inside an array
+    """
+    return arr[0]
+
+def select_last(arr):
+    """ Select a random value inside an array
+    """
+    return arr[-1]
 
 def _downsample_df(df, method = "average", offset = "unique_week"):
     """ Downsample the DF provided in the time dimension.
     Inputs:
     - method, str or callable. Method to downsample the timeseries. Must be in
-    ['average', 'std', 'min', 'max']. It can also be a custom callable.
+    ['average', 'std', 'min', 'max', 'first', 'last', 'rand_sample']. It can also be a custom callable.
     - offset, str or int. Describes over what period of time the dates should
     be grouped for downsampling. Must be an int (for the number of days) or a
     string in ['unique_week', 'month', 'unique_month', 'year']. If 'month' is
@@ -107,6 +123,12 @@ def _downsample_df(df, method = "average", offset = "unique_week"):
         new_df = grouped.aggregate(np.min)
     elif method == "max":
         new_df = grouped.aggregate(np.max)
+    elif method == "first":
+        new_df = grouped.aggregate(select_first)
+    elif method == "last":
+        new_df = grouped.aggregate(select_last)
+    elif method == "rand_sample":
+        new_df = grouped.aggregate(rand_sample)
     elif isinstance(method, types.FunctionType):
         new_df = grouped.aggregate(method)
     else:

@@ -21,8 +21,7 @@ location code.
 ###############################################################################
 TO DO LIST:
 ###############################################################################
-TODO: Add the possibility to load several years for one location inside the
-same DF/panel.
+
 TODO: Add other data sources such as weather underground, arm.gov, data.gov,
 ... and allow merging data. Create a DataSource class to unify how data
 collecting classes interact with data sources?
@@ -441,14 +440,14 @@ class GSODDataReader(HasTraits):
                     df = df.reindex(pandas.DateRange(start = '1/1/%s' % year,
                                                      end = '31/12/%s' % year,
                                                      offset = pandas.datetools.day))
-                    key = str(layer['USAF'])+"-"+str(layer['WBAN'])
+                    key = "%s-%s" % (layer['USAF'], layer['WBAN'])
                     data[key] = df
                 result = pandas.Panel(data)
             return result
                 
     def collect_data(self, year_list=[], year_start = None, year_end = None, 
                 station_name=None, exact_station = False, location_WMO=None,
-                location_WBAN=None, country=None, state=None):
+                location_WBAN=None, country=None, state=None, filename = ""):
         """ Process a request for data possibly over multiple years. If the list
         is empty, 
 
@@ -477,15 +476,22 @@ class GSODDataReader(HasTraits):
                 result = append_panels(result, year_data)
             else:
                 result = year_data
+                
+        if filename:
+            # TODO support storing into netCDF also
+            if os.path.splitext(filename)[1] == ""
+                filename = filename+".h5"
+            store = pandas.HDFStore(filename)
+            store["data"] = result
+            store.close()
         return result
 
 def filter_data(panel, locations = [], measurements = [],
                 date_start = None, date_end = None,
                 offset = None, downsampling_method = ""):
     """ Extract specific data from a panel: reduce the minor axis to only the
-    type of data listed in data_list, or reduce
-    the major axis to a smaller range of dates or reduce the number of items
-    to a list of locations.
+    type of data listed in data_list, reduce the major axis to a smaller range
+    of dates or reduce the number of items to a list of locations.
 
     Inputs:
     - measurements, list(str).  List of column names to select (must be in
@@ -493,12 +499,13 @@ def filter_data(panel, locations = [], measurements = [],
     - date_start, date_end. start and end dates for slicing in the time
     dimension. Can be a datetime object or a string in the format YYYY/MM/DD.
     - offset. Used to disseminate data or to downsample data if a
-    disseminate_method or downsampling_method is given. NOT IMPLEMENTED
+    downsampling_method is given. Can be 'unique_week', 'month',
+    'unique_month', 'year'. 
     - downsampling_method, str. Method to downsample the dataset. Can be
-    'average', ... NOT IMPLEMENTED
+    'average', 'std', 'min', 'max', 'first', 'last', 'rand_sample'.
 
     Outputs:
-    - slice/part of the original panel.
+    - slice/sub-part of the original panel.
     """
     #####################
     # Rationalize inputs
@@ -520,6 +527,7 @@ def filter_data(panel, locations = [], measurements = [],
     #########
     # FILTERS
     #########
+    # filter items
     if locations:
         panel = panel.filter(locations)
 
