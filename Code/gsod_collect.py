@@ -529,7 +529,7 @@ def filter_data(panel, locations = [], measurements = [],
                          % (set(measurements)-set(DATA_FILE_COLS), DATA_FILE_COLS))
     if len(measurements) > 1:
         result = panel.ix[:,date_start:date_end, measurements]
-    if len(measurements) == 1:
+    elif len(measurements) == 1:
         # This will automatically convert result to a DF. Passing measurements
         # directly will result in a Panel with length 1 minor_axis
         result = panel.ix[:,date_start:date_end, measurements[0]]
@@ -538,26 +538,39 @@ def filter_data(panel, locations = [], measurements = [],
 
     if offset and downsampling_method:
         result = downsample(result, downsampling_method, offset)
+    elif offset or downsampling_method:
+        warnings.warn("An offset or a downsampling method has been provided "
+                      "but both are needed.")
     return result
             
 if __name__ == "__main__":
     # Sample code for usage description
-    import extend_pandas
-    reload(extend_pandas)
-
     dr = GSODDataReader()
     dr.search_station("austin", country = "US", state = "TX")
     dr.search_station("pari", country = "FR")
     paris_data =  dr.collect_data([2007, 2008], station_name = "PARIS", country = "FR")
-    filtered = filter_data(paris_data, measurements = "TEMP",
+    paris_data_temp = filter_data(paris_data, measurements = "TEMP")
+    
+    paris_data_temp_downsampled = downsample(paris_data_temp, method = "average", offset = "unique_month")
+
+    # Custom filtration
+    def weighted_average(arr):
+        weights = np.array([1,2,3,4,3,2,1])
+        if len(arr) == 7:
+            return (arr*weights).sum()/weights.sum()
+        else:
+            return arr.mean()
+    filtered = filter_data(paris_data, measurements = ["TEMP", "WDSP"],
+                           date_start = "2007/2/2", date_end = "2008/4/5",
+                           downsampling_method = weighted_average, offset = "unique_week")
+    filtered2 = filter_data(paris_data, measurements = ["TEMP", "WDSP"],
                            date_start = "2007/2/2", date_end = "2008/4/5",
                            downsampling_method = "average", offset = "unique_week")
 
-    paris_data_temp = filter_data(paris_data, measurements = "TEMP")
-    paris_data_temp_downsampled = downsample(paris_data_temp, method = "average", offset = "month")
-    
-    store = pandas.HDFStore("paris_temp_data.h5", "w")
-    store["data"] = filtered
+    # TODO Put this into a dr method
+    store = pandas.HDFStore("compare_downsampling.h5")
+    store["fil1"] = filtered
+    store["fil2"] = filtered2
     store.close()
 
-    # See gsod_plot_3 for visualization of the content of that pandas or file. 
+    # See gsod_plot_3 for visualization of the content of these pandas or file. 
