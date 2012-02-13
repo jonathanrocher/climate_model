@@ -24,7 +24,9 @@ def pandas_hdf_to_data_dict2(filename):
 
     Returns:
     - content of all (1D) timeseries found in the hdf5 file including the index
-    - type of the index ('datetime' means values in s since Epoch, )
+    - whether the index representes dates. In that case, the index is stored
+    with a kind keyword with value 'datetime' and its values are the times in
+    seconds since Epoch. 
 
     NOTE: The version 1 accesses the pandas, by reconstructing them from the
     HDFStore. But this is inefficient as pandas stores all the pandas components

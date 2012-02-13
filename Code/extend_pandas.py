@@ -1,10 +1,14 @@
 """ General functionalities on pandas.
 
+TODO: Implement downsampling of panels
 TODO: Contribute that to pandas project?
 """
-
+import types
 import pandas
 import numpy as np
+
+NUM2STR_MONTH = {1: "01-Jan", 2: "02-Feb", 3: "03-Mar", 4: "04-Apr", 5: "05-May", 6: "06-Jun",
+                 7: "07-Jul", 8: "08-Aug", 9: "09-Sep", 10: "10-Oct", 11: "11-Nov", 12: "12-Dec"}
 
 def append_panels(p1,p2):
     """ Append panels to each other in the index (time) dimension (major axis)
@@ -74,13 +78,13 @@ def _downsample_df(df, method = "average", offset = "unique_week"):
     def get_month(date):
         """ Group dates by month, ignoring years
         """
-        return date.month
+        return NUM2STR_MONTH[date.month]
     
     def get_unique_month(date):
         """ Group dates by month, not ignoring years: january 2012 is treated
         as a different month as january 2011. 
         """
-        return (date.year, date.month)
+        return "%s-%s" % (date.year, NUM2STR_MONTH[date.month])
         
     def get_year(date):
         """ Group dates by month, ignoring years
@@ -103,24 +107,27 @@ def _downsample_df(df, method = "average", offset = "unique_week"):
         new_df = grouped.aggregate(np.min)
     elif method == "max":
         new_df = grouped.aggregate(np.max)
-    elif isinstance(method, callable):
+    elif isinstance(method, types.FunctionType):
         new_df = grouped.aggregate(method)
     else:
         raise NotImplementedError("This downsampling method (%s) is not yet "
                                   "implemented." % method)
-    print "new shape", new_df.shape
     return new_df
 
 def _downsample_panel(panel, method = "average", offset = "unique_week"):
-    """ Downsample the panel provided in the time dimension (major axis)
+    """ Downsample the panel provided in the time dimension (major axis).
+
+    TODO: Is there a more efficient way to do this?
     """
-    return panel
+    data = {}
+    for item_name, df in panel.iteritems():
+        data[item_name] = _downsample_df(df, method, offset)
+    return pandas.Panel(data)
 
 def downsample(obj, method = "average", offset = "unique_week"):
     """ Format the object content to floats and dispatch to the appropriate
     function based on the type of pandas. 
     """
-    print "Enter downsample"
     # Formating the result
     if obj.values.dtype != np.float:
         obj = obj.astype(float)
