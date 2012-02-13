@@ -114,15 +114,17 @@ class GSODDataPlotterView(HasTraits):
         if array_dict:
             ts_data.update(array_dict)
 
-        # Now trigger the plot redraw
-        self.ts_data = ts_data 
+        if ts_data:
+            # Now trigger the plot redraw
+            self.ts_data = ts_data 
         
 
     def _data_file_changed(self):
        """ Update the data from the HDF5 file.
        """
-       self.ts_data, self.index_is_dates = pandas_hdf_to_data_dict2(self.data_file)
-       assert("index" in self.ts_data)
+       ts_data, self.index_is_dates = pandas_hdf_to_data_dict2(self.data_file)
+       assert("index" in ts_data)
+       self.ts_data = ts_data
 
     def _ts_data_changed(self):
         """ Dataset has changed: update the plots.

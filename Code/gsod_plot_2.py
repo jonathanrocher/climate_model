@@ -76,8 +76,9 @@ timeseries.
     def _data_file_changed(self):
        """ Update the data from the HDF5 file.
        """
-       self.ts_data, self.index_is_dates = pandas_hdf_to_data_dict2(self.data_file)
-       assert("index" in self.ts_data)
+       ts_data, self.index_is_dates = pandas_hdf_to_data_dict2(self.data_file)
+       assert("index" in ts_data)
+       self.ts_data = ts_data
 
     def _ts_data_changed(self):
         """ Dataset has changed: update the plot.
