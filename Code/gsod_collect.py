@@ -366,12 +366,15 @@ def search_station(location_db, location_dict, station_name = None,
 class GSODDataReader(HasTraits):
     """ Data reader for GSOD data retrieved from NCDC servers
     """
-    data_source = Enum("NCDC")
+    data_source = Enum("All", "NCDC")
     
     # Metadata
     country_db = Instance(CountryDatabase)
     location_db = Array()
     location_dict = Dict()
+
+    # Optional filename for storing the result of a data collection
+    filename = Str()
 
     def __init__(self, data_source = 'NCDC'):
         """ Initialization of the reader
@@ -478,10 +481,13 @@ class GSODDataReader(HasTraits):
                 result = year_data
                 
         if filename:
-            # TODO support storing into netCDF also
             if os.path.splitext(filename)[1] == ""
                 filename = filename+".h5"
-            store = pandas.HDFStore(filename)
+            self.filename = filename
+            
+        if self.filename:
+            # TODO support storing into netCDF also
+            store = pandas.HDFStore(self.filename)
             store["data"] = result
             store.close()
         return result
