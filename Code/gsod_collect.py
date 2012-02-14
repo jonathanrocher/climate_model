@@ -23,12 +23,17 @@ TO DO LIST:
 ###############################################################################
 
 TODO: Add other data sources such as weather underground, arm.gov, data.gov,
-... and allow merging data. Create a DataSource class to unify how data
-collecting classes interact with data sources?
-TODO: Allow for custom ftp and opeDAP retrieval
+... and allow merging data.
+TODO: Allow for custom ftp and opeDAP retrieval.
+Create a DataSource class to unify how data collecting classes interact
+with data sources. Allow to create new datasources and add them to a
+collection. Also store a list of the available measurements (TEMP, WIND SPEED,
+...) as the list of datasources gets bigger.
 TODO: Build a UI on top of all of this. A simple one just to search and store
 the files locally. Another one integrating an ipython prompt to load the data
 and be able to play with them afterwards.
+TODO: Add/explore memory mapping (with pytables?) when collecting VERY large
+amounts of data.
 """
 
 # Std lib imports
