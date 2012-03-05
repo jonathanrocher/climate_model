@@ -9,8 +9,8 @@ d) To move to the correct subdirectory, enter:
 e) Annual files:
    eg, gsod_2006.tar - All 2006 files (compressed) by station, in one tar file.
    Station files:
-   eg, 010010-99999-2006.op.gz - Files by station year, identified by WMO number, 
-   WBAN number (if appropriate), and year.
+   eg, 010010-99999-2006.op.gz - Files by station & year, identified by WMO 
+   number, WBAN number, and year.
 
 Background information:
 a) locations:
@@ -23,12 +23,13 @@ TO DO LIST:
 ###############################################################################
 
 TODO: Add other data sources such as weather underground, arm.gov, data.gov,
-... and allow merging data.
-TODO: Allow for custom ftp and opeDAP retrieval.
-Create a DataSource class to unify how data collecting classes interact
+ECMWF, ... and allow merging of data.
+TODO: Create a DataSource class to unify how data collecting classes interact
 with data sources. Allow to create new datasources and add them to a
-collection. Also store a list of the available measurements (TEMP, WIND SPEED,
-...) as the list of datasources gets bigger.
+collection. Store a list of the available measurements (TEMP, WIND SPEED,
+...) as the list of data sources gets bigger. Also keep track of the source for 
+each dataset. 
+TODO: Allow for custom ftp and opeDAP retrieval.
 TODO: Build a UI on top of all of this. A simple one just to search and store
 the files locally. Another one integrating an ipython prompt to load the data
 and be able to play with them afterwards.
@@ -39,12 +40,14 @@ amounts of data.
 # Std lib imports
 import datetime
 import os
-import numpy as np
-import pandas
 import warnings
 
+# General imports
+import numpy as np
+import pandas
+
 # ETS imports
-from traits.api import HasTraits, Instance, Enum, Array, Dict
+from traits.api import HasTraits, Instance, Enum, Array, Dict, Str
 
 # Local imports
 from retrieve_remote import retrieve_file, info2filepath
@@ -165,8 +168,9 @@ def list_yearly_data(year, ftp_connection):
     return file_list, location_list.sort()
 
 def read_ish_history():
-    """ Read the ish-history.TXT metadata file: it connects the WMO location to the WBAN location,
-    location name, the country codes, the lattitude, longitude elevation, and range of dates.
+    """ Read the ish-history.TXT metadata file: it connects the WMO location to 
+    the WBAN location, location name, the country codes, the lattitude, 
+    longitude elevation, and range of dates.
 
     Returns a structured array
     """
@@ -481,12 +485,15 @@ class GSODDataReader(HasTraits):
             if year_data is None:
                 continue
             if result:
-                result = append_panels(result, year_data)
+                if isinstance(year_data, pandas.DataFrame):
+                    result = result.append(year_data)
+                elif isinstance(year_data, pandas.DataFrame):
+                    result = append_panels(result, year_data)
             else:
                 result = year_data
                 
         if filename:
-            if os.path.splitext(filename)[1] == ""
+            if os.path.splitext(filename)[1] == "":
                 filename = filename+".h5"
             self.filename = filename
             
@@ -532,9 +539,17 @@ def filter_data(panel, locations = [], measurements = [],
 
     if isinstance(date_start, str):
         date_start = datetime.datetime.strptime(date_start, '%Y/%m/%d')
+    elif isinstance(date_start, int) and date_start > 1800:
+        # Input was a year
+        date_start = "%s/01/01" % date_start
+        date_start = datetime.datetime.strptime(date_start, '%Y/%m/%d')
     if isinstance(date_end, str):
         date_end = datetime.datetime.strptime(date_end, '%Y/%m/%d')
-        
+    elif isinstance(date_end, int) and date_end > 1800:
+        # Input was a year
+        date_end = "%s/01/01" % date_end
+        date_end = datetime.datetime.strptime(date_end, '%Y/%m/%d')
+
     #########
     # FILTERS
     #########
