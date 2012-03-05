@@ -6,7 +6,7 @@ TODO: Contribute that to pandas project?
 import types
 import pandas
 import numpy as np
-from np.random import randint
+from numpy.random import randint
 
 NUM2STR_MONTH = {1: "01-Jan", 2: "02-Feb", 3: "03-Mar", 4: "04-Apr", 5: "05-May", 6: "06-Jun",
                  7: "07-Jul", 8: "08-Aug", 9: "09-Sep", 10: "10-Oct", 11: "11-Nov", 12: "12-Dec"}
@@ -14,11 +14,11 @@ NUM2STR_MONTH = {1: "01-Jan", 2: "02-Feb", 3: "03-Mar", 4: "04-Apr", 5: "05-May"
 def append_panels(p1,p2):
     """ Append panels to each other in the index (time) dimension (major axis)
 
-FIXME: This is too restrictive to be pushed to pandas in general: should
-add NaN in dimensions that are not comon to both panels.
-TODO: Add capability to append along any dimension.
-TODO: Add capability to add many panels at once.
-"""
+    FIXME: This is too restrictive to be pushed to pandas in general: should
+    add NaN in dimensions that are not comon to both panels.
+    TODO: Add capability to append along any dimension.
+    TODO: Add capability to add many panels at once.
+    """
     # Shape testing
     if not (p1.items.shape == p2.items.shape):
         raise ValueError("The number of items is not the same in both panels.")
@@ -58,7 +58,7 @@ def select_last(arr):
     return arr[-1]
 
 def _downsample_df(df, method = "average", offset = "unique_week"):
-    """ Downsample the DF provided in the time dimension.
+    """ Downsample the DF provided along the time dimension.
     Inputs:
     - method, str or callable. Method to downsample the timeseries. Must be in
     ['average', 'std', 'min', 'max', 'first', 'last', 'rand_sample']. It can also be a custom callable.
