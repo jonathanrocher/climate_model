@@ -52,7 +52,7 @@ from traits.api import HasTraits, Instance, Enum, Array, Dict, Str
 # Local imports
 from retrieve_remote import retrieve_file, info2filepath
 from file_sys_util import untar, unzip
-from extend_pandas import append_panels, downsample
+from extend_pandas import downsample
 
 ###############################################################################
 
@@ -488,7 +488,7 @@ class GSODDataReader(HasTraits):
                 if isinstance(year_data, pandas.DataFrame):
                     result = result.append(year_data)
                 elif isinstance(year_data, pandas.DataFrame):
-                    result = append_panels(result, year_data)
+                    result = pandas.concat((result, year_data), axis = 1)
             else:
                 result = year_data
                 
