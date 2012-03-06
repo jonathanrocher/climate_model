@@ -10,19 +10,21 @@ TODO list:
 - Rethink the layout of the window.
 - Add more commonly used tools on these timeseries.
 - support netCDF and other self describing files in addition to HDF
-- Embed into a general application which contains the gsod_collect script to make
-a end-to-end mini-application with an ipython prompt. Use envisage task (or canopy?). 
-Keep it simple for educational purposes.
+- Embed into a general application which contains the gsod_collect script to 
+make a end-to-end mini-application with an ipython prompt. Use envisage task (or 
+canopy?).
 """
 
 # Major library imports
+import os
+import json
 import pandas
 import time
 
 # Enthought imports
 from enable.api import ComponentEditor
 from traits.api import HasTraits, Instance, Dict, File, Bool, Enum, List, \
-    on_trait_change, Int
+    on_trait_change, Int, Str
 from traitsui.api import View, Item, VGroup, HSplit
 
 # Chaco imports
@@ -70,7 +72,10 @@ class GSODDataPlotterView(HasTraits):
     ts_list = List()
     ts1_chooser = Enum(values="ts_list")
     ts2_chooser = Enum(values="ts_list")
-    ma_window_size = Int(0) # Moving average window size (in number of observations)
+    # Moving average window size (in number of observations)
+    ma_window_size = Int(0) 
+    # Analysis details
+    ts_analysis_details = Str("No details available")
     
     # Data
     ts_data = Dict()
@@ -93,17 +98,19 @@ class GSODDataPlotterView(HasTraits):
                                  Item('ts2_chooser', label="TS 2",
                                       visible_when="tool_chooser in ['%s']" % CORRELATION),
                                  Item('ma_window_size', label="MA window size",
-                                 visible_when="tool_chooser in ['%s']" % MA),#
+                                      visible_when="tool_chooser in ['%s']" % MA),
                                  Item('ts_analysis_plot', editor=ComponentEditor(size=(400, 600)), 
-                                      show_label=False),),),
+                                      show_label=False),
+                                 Item('ts_analysis_details', show_label = False, style = 'readonly', 
+                                      visible_when=("tool_chooser in ['%s']" % CORRELATION))),),
                             ),
-            title='Chaco Plot with file loader and legend highlighter',
+            title='Time-series plotter and analyzer',
             width=1300, height=800, resizable=True)
 
     def __init__(self, pandas_list = [], array_dict = {}, *args, **kw):
         """ If a (list of) pandas or a dict of arrays is passed, load them up. 
         """
-        # Initialize the analysis tool
+        # Initialize the data content of the analysis tool
         ts_data = {}
         super(GSODDataPlotterView, self).__init__(*args, **kw)
         if not isinstance(pandas_list, list):
@@ -172,6 +179,16 @@ class GSODDataPlotterView(HasTraits):
             self.arr_plot_data.set_data("ts1_ma", ts1_ma)
             self.ts_analysis_plot.plot(("index", self.ts1_chooser), type = "scatter", color = "blue")
             self.ts_analysis_plot.plot(("index", "ts1_ma"), type = "line", color = "blue")
+        
+    @on_trait_change("tool_chooser, ts1_chooser, ts2_chooser")
+    def update_analysis_details(self):
+        if self.tool_chooser == CORRELATION:
+            # Compute the correlation coefficients between the chosen TS
+            ts1 = pandas.Series(self.ts_data[self.ts1_chooser])
+            ts2 = pandas.Series(self.ts_data[self.ts2_chooser])
+            corr_coefs = ts1.corr(ts2), ts1.corr(ts2, method = 'spearman'), ts1.corr(ts2, method = 'kendall')    
+            self.ts_analysis_details = ("Coefficients of correlation: Std = %5.3f, Spearman = %5.3f, Kendall = %5.3f." % corr_coefs)
+            return 
         
 if __name__ == "__main__":
     viewer = GSODDataPlotterView() #data_file = "temp_data_paris.h5"
