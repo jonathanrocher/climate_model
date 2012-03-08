@@ -3,8 +3,6 @@ or directly from the object.
 The plotter contains zoom, pan, and legend highlighter tools and preserve
 the datetime tick labels.
 
-FIXME: datetime tick label not working anymore!
-
 TODO list:
 - Catch the closing of the window and close the hdf file
 - Rethink the layout of the window.

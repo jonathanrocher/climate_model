@@ -22,6 +22,7 @@ location code.
 TO DO LIST:
 ###############################################################################
 
+TODO: Refactor the content that is pure NOAA's NCDC related into its own module
 TODO: Add other data sources such as weather underground, arm.gov, data.gov,
 ECMWF, ... and allow merging of data.
 TODO: Create a DataSource class to unify how data collecting classes interact
@@ -52,19 +53,13 @@ from traits.api import HasTraits, Instance, Enum, Array, Dict, Str
 # Local imports
 from retrieve_remote import retrieve_file, info2filepath
 from file_sys_util import untar, unzip
-from extend_pandas import downsample
+from extend_pandas import downsample, GSOD_DATA_FILE_COLS
 
 ###############################################################################
 
 # FTP successful return code
 OUT_CWD_SUCCESS = '250 CWD command successful'
 OUT_LS_SUCCESS = '226 Transfer complete'
-
-DATA_FILE_COLS = ['STN---', 'WBAN', 'YEARMODA', 'TEMP', 'TEMP-count',
-                      'DEWP', 'DEWP-count', 'SLP', 'SLP-count', 'STP',
-                      'STP-count', 'VISIB', 'VISIB-count', 'WDSP',
-                      'WDSP-count', 'MXSPD', 'GUST', 'MAX', 'MIN', 'PRCP',
-                      'SNDP', 'FRSHTT']
 
 ###############################################################################
 
@@ -220,7 +215,7 @@ def datafile2pandas(filepath):
     """ Read a NCDC GSOD file into a pandas dataframe
     """
     df = pandas.read_table(filepath, sep="\s*", index_col=2, parse_dates = True,
-                           names = DATA_FILE_COLS, skiprows = [0])
+                           names = GSOD_DATA_FILE_COLS, skiprows = [0])
     return df
 
 def datafolder2pandas(folderpath):
@@ -503,88 +498,18 @@ class GSODDataReader(HasTraits):
             store["data"] = result
             store.close()
         return result
-
-def filter_data(panel, locations = [], measurements = [],
-                date_start = None, date_end = None,
-                offset = None, downsampling_method = ""):
-    """ Extract specific data from a panel: reduce the minor axis to only the
-    type of data listed in data_list, reduce the major axis to a smaller range
-    of dates or reduce the number of items to a list of locations.
-
-    Inputs:
-    - measurements, list(str).  List of column names to select (must be in
-    DATA_FILE_COLS)
-    - date_start, date_end. start and end dates for slicing in the time
-    dimension. Can be a datetime object or a string in the format YYYY/MM/DD.
-    - offset. Used to disseminate data or to downsample data if a
-    downsampling_method is given. Can be 'unique_week', 'month',
-    'unique_month', 'year'. 
-    - downsampling_method, str. Method to downsample the dataset. Can be
-    'average', 'std', 'min', 'max', 'first', 'last', 'rand_sample'.
-
-    Outputs:
-    - slice/sub-part of the original panel.
-    """
-    #####################
-    # Rationalize inputs
-    #####################
-    if isinstance(measurements, str):
-        measurements = [measurements]
-    if isinstance(locations, str):
-        locations = [locations]
-    if date_end and not date_start:
-        date_start = panel.major_axis[0]
-    if date_start and not date_end:
-        date_end = panel.major_axis[-1]
-
-    if isinstance(date_start, str):
-        date_start = datetime.datetime.strptime(date_start, '%Y/%m/%d')
-    elif isinstance(date_start, int) and date_start > 1800:
-        # Input was a year
-        date_start = "%s/01/01" % date_start
-        date_start = datetime.datetime.strptime(date_start, '%Y/%m/%d')
-    if isinstance(date_end, str):
-        date_end = datetime.datetime.strptime(date_end, '%Y/%m/%d')
-    elif isinstance(date_end, int) and date_end > 1800:
-        # Input was a year
-        date_end = "%s/01/01" % date_end
-        date_end = datetime.datetime.strptime(date_end, '%Y/%m/%d')
-
-    #########
-    # FILTERS
-    #########
-    # filter items
-    if locations:
-        panel = panel.filter(locations)
-
-    # Filter major and minor axis
-    if not set(measurements).issubset(set(DATA_FILE_COLS)):
-        raise ValueError("%s is not a valid data type. Allowed values are %s."
-                         % (set(measurements)-set(DATA_FILE_COLS), DATA_FILE_COLS))
-    if len(measurements) > 1:
-        result = panel.ix[:,date_start:date_end, measurements]
-    elif len(measurements) == 1:
-        # This will automatically convert result to a DF. Passing measurements
-        # directly will result in a Panel with length 1 minor_axis
-        result = panel.ix[:,date_start:date_end, measurements[0]]
-    else:
-        result = panel.ix[:,date_start:date_end,:]
-
-    if offset and downsampling_method:
-        result = downsample(result, downsampling_method, offset)
-    elif offset or downsampling_method:
-        warnings.warn("An offset or a downsampling method has been provided "
-                      "but both are needed.")
-    return result
             
 if __name__ == "__main__":
-    # Sample code for usage description
+
+    # Sample code for data collection tools usage description
     dr = GSODDataReader()
     dr.search_station("austin", country = "US", state = "TX")
     dr.search_station("pari", country = "FR")
     paris_data =  dr.collect_data([2007, 2008], station_name = "PARIS", country = "FR")
-    paris_data_temp = filter_data(paris_data, measurements = "TEMP")
     
+    # Pandas manipulation
+    from extend_pandas import filter_data
+    paris_data_temp = filter_data(paris_data, measurements = "TEMP")    
     paris_data_temp_downsampled = downsample(paris_data_temp, method = "average", offset = "unique_month")
 
     # Custom filtration
@@ -595,16 +520,17 @@ if __name__ == "__main__":
         else:
             return arr.mean()
     filtered = filter_data(paris_data, measurements = ["TEMP", "WDSP"],
-                           date_start = "2007/2/2", date_end = "2008/4/5",
+                           date_start = "2007/1/2", date_end = "2008/12/15",
                            downsampling_method = weighted_average, offset = "unique_week")
     filtered2 = filter_data(paris_data, measurements = ["TEMP", "WDSP"],
-                           date_start = "2007/2/2", date_end = "2008/4/5",
+                           date_start = "2007/1/2", date_end = "2008/12/15",
                            downsampling_method = "average", offset = "unique_week")
 
-    # TODO Put this into a dr method
-    store = pandas.HDFStore("compare_downsampling.h5")
-    store["fil1"] = filtered
-    store["fil2"] = filtered2
-    store.close()
-
+    # Storage
+    from extend_pandas import store_pandas
+    data_dict = {"fil1": filtered, "fil2": filtered2}
+    for complib in [None, 'zlib', 'bzip2', 'lzo', "blosc"]: 
+        store_pandas(data_dict, "compare_downsampling_%s.h5" % complib, 
+                     complevel = 9 , complib = complib)
+    
     # See gsod_plot_3 for visualization of the content of these pandas or file. 
