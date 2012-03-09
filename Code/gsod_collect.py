@@ -62,76 +62,6 @@ OUT_CWD_SUCCESS = '250 CWD command successful'
 OUT_LS_SUCCESS = '226 Transfer complete'
 
 ###############################################################################
-
-def list_WMO_locations_per_country():
-    """ List the range of location for each country found in file
-    NCDC-country-list.txt. The file is of the form below with a number of
-    country code that is unknown. It relies on the fact that the first 13
-    characters describe the range and everything after character 45 is the
-    country.
-
-    910000-914999 HI, KA, LN, MH, MY, NZ, PN, WK Pacific Ocean Islands
-    915000-915299 SO                             Solomon Islands
-    915300-915399 NW, NZ                         Detached Islands (Nauru, New Zealand)
-
-    FIXME: instead of manual loading, use genfromtxt. It can split a line
-    on a number of characters.
-    """
-    loc_range_dict = {}
-    
-    country_list_filemame = os.path.join("Data", "GSOD",
-                                         "NCDC-country-list.txt")
-    f_country_list = open(country_list_filemame, "r")
-    line = f_country_list.readline()
-    # Skip header
-    while not line.startswith('0'):
-        line = f_country_list.readline()
-        
-    for line in f_country_list:
-        line = line.strip()
-        if line:
-            val_range = tuple([int(val) for val in line[:13].split("-")])
-            country_codes = line[13:45].strip().split(",")
-            country_name = line[45:]
-            loc_range_dict[country_name] = (country_codes, val_range)
-            
-    f_country_list.close()
-    return loc_range_dict
-
-class CountryDatabase(dict):
-    """ Create an object that behaves like a dictionary but also possess a
-    search method for searching a country's name.
-
-    FIXME: is the super in the __init__ needed? Seems fine without it
-    """
-    def __init__(self, *args, **kw):
-        super(CountryDatabase, self).__init__(*args, **kw)
-        # Note that self = list...() wouldn't work because it would create
-        # a new var in the method's local namespace
-        self.update(list_WMO_locations_per_country())
-
-    def search_country(self, part_name):
-        """ Search for all country with part_name in their name, ignoring cases.
-        FIXME: Add regex support
-        """
-        results = [country for country in self.keys()
-                   if country.lower().find(part_name.lower()) != -1]
-        return results
-
-    def __getitem__(self, item):
-        """ Make the dict smarter by being able to guess the key if the part given is unambigious
-        """
-        options = self.search_keys(item)
-        if item in self:
-            return super(CountryDatabase, self).__getitem__(item)
-        elif len(options) == 1:
-            return super(CountryDatabase, self).__getitem__(options[0])
-        else:
-            if len(options) == 0:
-                raise KeyError("%s is not a valid key nor a part of a key." % item)
-            else:
-                raise KeyError("%s is part of more than 1 key: %s. Which did you mean?"
-                               % (item, options))
             
 def list_yearly_data(year, ftp_connection):
     """ List the GSOD data file available for a specified year on the server.
@@ -373,7 +303,6 @@ class GSODDataReader(HasTraits):
     data_source = Enum("All", "NCDC")
     
     # Metadata
-    country_db = Instance(CountryDatabase)
     location_db = Array()
     location_dict = Dict()
 
@@ -383,7 +312,6 @@ class GSODDataReader(HasTraits):
     def __init__(self, data_source = 'NCDC'):
         """ Initialization of the reader
         """
-        self.country_db = CountryDatabase()
         self.location_db = read_ish_history()
         self.location_dict = initialize_location_dict(self.location_db)
         
