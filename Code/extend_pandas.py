@@ -58,6 +58,7 @@ def _downsample_df(df, method = "average", offset = "unique_week"):
         num_day_grouped = 7
     elif isinstance(offset, int):
         num_day_grouped = offset
+        offset = "unique_week"
         
     def get_unique_week(date):    
         """ Compute the number of weeks since start.
@@ -85,10 +86,7 @@ def _downsample_df(df, method = "average", offset = "unique_week"):
         return date.year
 
     # Grouping the dates
-    if isinstance(offset, str):
-        group_by_func = eval("get_"+offset)
-    else:
-        group_by_func = get_week
+    group_by_func = eval("get_"+offset)
     grouped = df.groupby(group_by_func)
 
     # Applying the aggregation function
@@ -159,7 +157,8 @@ def filter_data(panel, locations = [], measurements = [],
     'average', 'std', 'min', 'max', 'first', 'last', 'rand_sample'.
 
     Outputs:
-    - slice/sub-part of the original panel.
+    - slice/sub-part of the original panel. If only one measurement is 
+    requested, returns a DF with the locations as the columns.
     """
     #####################
     # Rationalize inputs
