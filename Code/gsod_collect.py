@@ -451,6 +451,7 @@ if __name__ == "__main__":
             return (arr*weights).sum()/weights.sum()
         else:
             return arr.mean()
+            
     filtered = filter_data(paris_data, measurements = ["TEMP", "WDSP"],
                            date_start = "2007/1/2", date_end = "2008/12/15",
                            downsampling_method = weighted_average, offset = "unique_week")
