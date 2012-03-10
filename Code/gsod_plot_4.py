@@ -159,18 +159,19 @@ class GSODDataPlotterView(HasTraits):
             self.ts_plot.x_grid.tick_generator = x_axis.tick_generator
             
         if self.data_file:
-            self.ts_plot.title = "Time series visualization from %s" % self.data_file
+            self.ts_plot.title = ("Time series visualization from %s" 
+                                  % (os.path.split(self.data_file)[1]))
         else:
             self.ts_plot.title = "Time series visualization"
         attach_tools(self.ts_plot)
 
         # Attach the range selection to the last renderer; any one will do
-        renderer.tools.append(RangeSelection(renderer, left_button_selects = False,
+        self.ts_plot.tools.append(RangeSelection(renderer, left_button_selects = False,
             auto_handle_event = False))
         # Attach the corresponding overlay
         self._range_selection_overlay = RangeSelectionOverlay(renderer,
                                     metadata_name="selections")
-        renderer.overlays.append(self._range_selection_overlay)
+        self.ts_plot.overlays.append(self._range_selection_overlay)
         # Grab a reference to the Time axis datasource and add a listener to its
         # selections metadata
         self.times_ds = renderer.index
