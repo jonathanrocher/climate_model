@@ -3,12 +3,12 @@
 
 from urllib import urlretrieve
 import os.path
+import warnings
 
 def info2filepath(year, location_WMO = None, location_WBAN = None, data_source = 'NCDC'):
     """ Convert a year and location code to a filename where that data is
     stored. If no location is provided, convert the year to the tar file 
     """
-    print location_WMO, location_WBAN
     if data_source == 'NCDC':
         if location_WMO is not None and location_WBAN is not None:
             # Force the format to have WMO loc on 6 char and WBAN on 5. 
@@ -25,13 +25,17 @@ def info2filepath(year, location_WMO = None, location_WBAN = None, data_source =
 def retrieve_file(data_source, remote_target, local_filepath):
     """ Retrieve a file from a data source. 
 
-    ENH: Add sniffing capabilities to test what type of connection it is. Paramiko if SFTP.
+    ENH: Add sniffing capabilities to test what type of connection it is. Use Paramiko if SFTP.
     """
+    print "Attempting to retrieve %s from the servers..." % remote_target
     if data_source == "NCDC":
         url_base = "ftp://ftp.ncdc.noaa.gov/pub/data/gsod"
         url = os.path.join(url_base, remote_target)
-        received = urlretrieve(url, local_filepath)
+        try:
+            received = urlretrieve(url, local_filepath)
+        except IOError as e:
+            received = False
         if not received:
-            raise OSError("Failed receiving the file %s." % url)
+            warnings.warn("Failed receiving the file %s from the server." % url)
     else:
         raise NotImplementedError("Unable to retrieve data from %s" % data_source)

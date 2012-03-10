@@ -2,9 +2,9 @@
 
 Instruction for accessing NCDC data:
 a) Enter:  open ftp.ncdc.noaa.gov    
-b) Login is:  ftp
-c) Password is:  your email address
-d) To move to the correct subdirectory, enter:  
+b) Login:  ftp
+c) Password:  your email address
+d) To move to the correct subdirectory:  
    cd /pub/data/gsod/<DESIRED YEAR>
 e) Annual files:
    eg, gsod_2006.tar - All 2006 files (compressed) by station, in one tar file.
@@ -22,6 +22,10 @@ location code.
 TO DO LIST:
 ###############################################################################
 
+TODO: Add possibility to store the collected data into a file at collection. 
+Implement it with the possibility to write to the file piece by piece.
+TODO: Add caching to list the non-existing files. Prepopulate it from the database 
+files that contain the range of data existance.
 TODO: Refactor the content that is pure NOAA's NCDC related into its own module
 TODO: Add other data sources such as weather underground, arm.gov, data.gov,
 ECMWF, ... and allow merging of data.
@@ -165,7 +169,8 @@ def datafolder2pandas(folderpath):
             data[key] = datafile2pandas(file2load)
     return pandas.Panel(data)
  
-def collect_year_at_loc(year, location_WMO, location_WBAN, data_source = 'NCDC'):
+def collect_year_at_loc(year, location_WMO, location_WBAN, data_source = 'NCDC', 
+                        internet_connected = True):
     """ Collect the data GSOD data file for specified location and specified
     year. Look locally for the file first. If it is not there, and its gzip
     version is not either, untar the file if it is present and has not been
@@ -174,6 +179,7 @@ def collect_year_at_loc(year, location_WMO, location_WBAN, data_source = 'NCDC')
     filename = info2filepath(year, location_WMO, location_WBAN)
     folder_location = os.path.join("Data", "GSOD", "gsod_"+str(year))
     filepath = os.path.join(folder_location, filename)
+    print "Attempting to collect %s..." % filepath
     filepath_found = True
     
     if not os.path.exists(filepath):
@@ -198,7 +204,7 @@ def collect_year_at_loc(year, location_WMO, location_WBAN, data_source = 'NCDC')
                 warnings.warn("File %s is missing from the dataset: skipping "
                               "this location." % zipped_filepath)
                 filepath_found = False
-        else:
+        elif internet_connected:
             target_folder = "Data/GSOD/gsod_"+str(year)
             if not os.path.exists(target_folder):
                 print "Creating locally the folder %s." % target_folder
@@ -208,7 +214,12 @@ def collect_year_at_loc(year, location_WMO, location_WBAN, data_source = 'NCDC')
                 remote_location = str(year)
             remote_target = os.path.join(remote_location, filename+".gz")
             retrieve_file(data_source, remote_target, zipped_filepath)
-            unzip(zipped_filepath)
+            if os.path.isfile(zipped_filepath):
+                unzip(zipped_filepath)
+            else:
+                filepath_found = False
+        else:
+            filepath_found = False
         
     if filepath_found:
         return datafile2pandas(filepath)
@@ -306,9 +317,6 @@ class GSODDataReader(HasTraits):
     location_db = Array()
     location_dict = Dict()
 
-    # Optional filename for storing the result of a data collection
-    filename = Str()
-
     def __init__(self, data_source = 'NCDC'):
         """ Initialization of the reader
         """
@@ -327,7 +335,7 @@ class GSODDataReader(HasTraits):
 
     def collect_year(self, year=None, station_name=None, exact_station = False, 
                     location_WMO=None, location_WBAN=None, country=None, 
-                    state=None):
+                    state=None, internet_connected = True):
         """ Process a request for data for a given year at a given location 
         optionaly.
 
@@ -364,11 +372,13 @@ class GSODDataReader(HasTraits):
                                       country, state)
             if len(filtered) == 1:
                 result = collect_year_at_loc(year, location_WMO = filtered['USAF'][0],
-                                             location_WBAN = filtered['WBAN'][0])
+                                             location_WBAN = filtered['WBAN'][0], 
+                                             internet_connected = internet_connected)
             else:
                 data = {}
                 for layer in filtered:
-                    df = collect_year_at_loc(year, layer['USAF'], layer['WBAN'])
+                    df = collect_year_at_loc(year, layer['USAF'], layer['WBAN'], 
+                                             internet_connected = internet_connected)
                     # reindex over the entire year in case there are missing values
                     if df is None:
                         continue
@@ -382,7 +392,8 @@ class GSODDataReader(HasTraits):
                 
     def collect_data(self, year_list=[], year_start = None, year_end = None, 
                 station_name=None, exact_station = False, location_WMO=None,
-                location_WBAN=None, country=None, state=None, filename = ""):
+                location_WBAN=None, country=None, state=None, 
+                internet_connected = True):
         """ Process a request for data possibly over multiple years. If the list
         is empty, 
 
@@ -401,30 +412,22 @@ class GSODDataReader(HasTraits):
             year_list.sort()
 
         result = None
+        print "Collecting data for years %s." % year_list
         for year in year_list:
             year_data = self.collect_year(year, station_name, exact_station,
                                           location_WMO, location_WBAN, country,
-                                          state)
+                                          state, internet_connected = internet_connected)
             if year_data is None:
                 continue
+            else:
+                print "Data found:", year_data
             if result:
                 if isinstance(year_data, pandas.DataFrame):
                     result = result.append(year_data)
                 elif isinstance(year_data, pandas.DataFrame):
-                    result = pandas.concat((result, year_data), axis = 1)
+                    result = pandas.concat([result, year_data], axis = 1)
             else:
                 result = year_data
-                
-        if filename:
-            if os.path.splitext(filename)[1] == "":
-                filename = filename+".h5"
-            self.filename = filename
-            
-        if self.filename:
-            # TODO support storing into netCDF also
-            store = pandas.HDFStore(self.filename)
-            store["data"] = result
-            store.close()
         return result
             
 if __name__ == "__main__":
@@ -457,7 +460,7 @@ if __name__ == "__main__":
     # Storage
     from extend_pandas import store_pandas
     data_dict = {"fil1": filtered, "fil2": filtered2}
-    for complib in [None, 'zlib', 'bzip2', 'lzo', "blosc"]: 
+    for complib in [None, 'zlib', 'bzip2', "blosc"]: 
         store_pandas(data_dict, "compare_downsampling_%s.h5" % complib, 
                      complevel = 9 , complib = complib)
     
