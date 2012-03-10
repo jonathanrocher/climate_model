@@ -1,0 +1,92 @@
+from enaml.stdlib.fields import IntField
+
+# Monkey patch Qt Enable Canvas for upstream fix
+from enaml.backends.qt.qt_enable_canvas import QtEnableCanvas
+def shell_component_changed(self, component):
+    self.window.component = component
+QtEnableCanvas.shell_component_changed = shell_component_changed
+
+
+enamldef Loader(Container):
+    constraints = [
+        hbox(lbl, fld, pb)
+    ]
+    Label:
+        id: lbl
+        text = 'HDF File to Load'
+    Field:
+        id: fld
+        read_only = True
+        value << model.data_file
+    PushButton:
+        id: pb
+        text = 'Load'
+        constraints = [height == fld.height]
+        clicked ::
+            from PySide import QtGui
+            d = QtGui.QFileDialog()
+            fn= d.getOpenFileName()[0]
+            if fn:
+                model.data_file = fn
+
+
+enamldef WComboBox(ComboBox):
+    hug_width = 'ignore'
+
+
+enamldef TS2Items(Inline):
+    Label:
+        text = 'TS 2'
+    WComboBox:
+        items << model.ts_list
+        value << items[0] if items else ''
+        value :: model.ts2_chooser = event.new
+
+
+enamldef MAItems(Inline):
+    Label:
+        text = 'MA Window Size'
+    IntField:
+        value := model.ma_window_size
+
+
+enamldef RightPanel(Container):
+    GroupBox:
+        title = 'Controls'
+        margins = (0, 0, 0, 0) 
+        Form:
+            margins = (0, 0, 0, 0)
+            Label:
+                text = 'Choose Tool'
+            WComboBox:
+                id: choose
+                items << model.tool_list
+                value := model.tool_chooser
+            Label:
+                text = 'TS 1'
+            WComboBox:
+                items << model.ts_list
+                value << items[0] if items else ''
+                value :: model.ts1_chooser = event.new
+            Include:
+                components << [TS2Items()] if choose.value == 'Correlation' else [MAItems()]
+    EnableCanvas:
+        component << model.ts_analysis_plot
+    Label:
+        text << model.ts_analysis_details
+
+
+enamldef StatsView(MainWindow):
+    attr model
+    title = 'Stats Example'
+    initial_size = (1024, 500)
+    Container:
+        Loader:
+            pass
+        Splitter:
+            preferred_sizes = [500, 500]
+            EnableCanvas:
+                component << model.ts_plot
+            RightPanel:
+                pass
+

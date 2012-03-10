@@ -1,4 +1,5 @@
-""" Implement a Chaco data plotter that loads pandas data from an hdf5 file
+""" ENAML VERSION
+Implement a Chaco data plotter that loads pandas data from an hdf5 file
 or directly from the object.
 The plotter contains zoom, pan, and legend highlighter tools and preserve
 the datetime tick labels.
@@ -227,8 +228,12 @@ class GSODDataPlotterView(HasTraits):
             return 
         
 if __name__ == "__main__":
-    viewer = GSODDataPlotterView() #data_file = "temp_data_paris.h5"
-    viewer.configure_traits()
+    model = GSODDataPlotterView()
+    import enaml
+    with enaml.imports():
+        from gsod_plot_view import StatsView
+    view = StatsView(model=model)
+    view.show()
 
 
 
