@@ -420,11 +420,12 @@ class GSODDataReader(HasTraits):
             if year_data is None:
                 continue
             else:
-                print "Data found:", year_data
+                print("%s found with shape %s." % (type(year_data), 
+                                                   year_data.shape))
             if result:
                 if isinstance(year_data, pandas.DataFrame):
                     result = result.append(year_data)
-                elif isinstance(year_data, pandas.DataFrame):
+                elif isinstance(year_data, pandas.Panel):
                     result = pandas.concat([result, year_data], axis = 1)
             else:
                 result = year_data
