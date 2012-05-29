@@ -231,34 +231,4 @@ def store_pandas(pandas_dict, filename, complevel = 9 , complib = "blosc"):
     for name,panda in pandas_dict.items():
         store[name] = panda
     store.close()
-    
-    
-def append_panels(p1,p2):
-    """ Append panels to each other in the index (time) dimension (major axis)
-
-    DEPRECATED: REPLACED BY THE NEW PANDAS.CONCAT FUNCTION IF PANDAS IS RECENT 
-    ENOUGH (version > 0.7)
-    """
-    # Shape testing
-    if not (p1.items.shape == p2.items.shape):
-        raise ValueError("The number of items is not the same in both panels.")
-    if not (p1.minor_axis.shape == p2.minor_axis.shape):
-        raise ValueError("The number of minor axis is not the same in both panels.")
-        
-    # Testing elements in each dimension
-    if not np.all(p1.items.values == p2.items.values):
-        raise ValueError("The elements of the items dimension are not the same in both panels.")
-    if not np.all(p1.minor_axis.values == p2.minor_axis.values):
-        raise ValueError("The elements of the minor axis dimension are not the same in both panels.")
-
-    # Values
-    p3 = np.hstack((p1.values,p2.values))
-    # Dimension labels
-    result_items = p1.items
-    result_major_axis = np.hstack((p1.major_axis.values, p2.major_axis.values))
-    result_major_axis = pandas.Index(result_major_axis)
-    result_minor_axis = p1.minor_axis
-
-    return pandas.Panel(p3, items=result_items, major_axis=result_major_axis, 
-                        minor_axis=result_minor_axis)
  

@@ -11,7 +11,7 @@ import numpy as np
 import time
 import warnings
 
-def pandas_hdf_to_data_dict2(filename):
+def pandas_hdf_to_data_dict(filename):
     """ Explore the content of the pandas HDFStore (HDF5) and create a dictionary
     of timeseries (numpy arrays) found in it. The key will be used as names
     for the curves. All indexes must be the same and stored once with key
@@ -44,7 +44,7 @@ def pandas_hdf_to_data_dict2(filename):
     # All pandas stored using the HDFStore interface are organized one per
     # group. DateRange indexes possess a 'kind' attribute that specifies
     # that it is an array of datetime objects.
-    for key, group in h5file.root._v_children.items():
+    for key, _ in h5file.root._v_children.items():
         group = getattr(h5file.root, key)
         pandas_type = getattr(group._v_attrs, "pandas_type", "other")
         if pandas_type == 'series':
@@ -85,21 +85,6 @@ def pandas_hdf_to_data_dict2(filename):
     index_is_dates = getattr(index0._v_attrs, 'kind', "numeric") == "datetime"
     h5file.close()
     return content, index_is_dates
-
-def pandas_hdf_to_data_dict1(filename):
-    """ Explore the content of the pandas store (HDF5) and create a dictionary
-    of timeseries (numpy arrays) found in it. The key will be used as names
-    for the curves. All indexes must be the same and stored once with key
-    "index".
-
-    NOTE: This is the naive version of the task using the pandas' interface only.
-    See version 2 for faster implementation. 
-    """
-    store = pandas.HDFStore(filename, "r")
-    pandas_list = [store[key] for key in store.handle.root._v_children.keys()]
-    names = store.handle.root._v_children.keys()
-    store.close()
-    return  pandas2array_dict(pandas_list, names = names)
 
 def pandas2array_dict(pandas_list, names = []):
     """ Convert a list of pandas into a dict of arrays for plotting.

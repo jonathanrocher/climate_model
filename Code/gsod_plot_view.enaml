@@ -23,6 +23,8 @@ enamldef Loader(Container):
         text = 'Load'
         constraints = [height == fld.height]
         clicked ::
+            import pdb
+            pdb.set_trace()
             from PySide import QtGui
             d = QtGui.QFileDialog()
             fn= d.getOpenFileName()[0]
@@ -53,9 +55,9 @@ enamldef MAItems(Inline):
 enamldef RightPanel(Container):
     GroupBox:
         title = 'Controls'
-        margins = (0, 0, 0, 0) 
+        #margins = (0, 0, 0, 0) 
         Form:
-            margins = (0, 0, 0, 0)
+            #margins = (0, 0, 0, 0)
             Label:
                 text = 'Choose Tool'
             WComboBox:
