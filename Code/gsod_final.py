@@ -39,7 +39,8 @@ class StationTable(AbstractTableModel):
         colname = self.columns[index.column]
         val = df[colname].view(numpy.ndarray)[index.row]
         if isinstance(val, basestring): return val
-        elif isinstance(val, datetime): return val.strftime('%x')
+        elif isinstance(val, datetime): 
+            return "%02d/%02d/%d"%(val.month, val.day, val.year)
         elif numpy.isnan(val): return ''
         else: return str(val)
 
@@ -79,7 +80,11 @@ if __name__ == '__main__':
     dr = GSODDataReader()
 
     stations = dr.location_db
-    stations = stations[(stations['LAT'] > -85.) & (stations['LAT'] < 85.)][::10]
+    start = datetime(2000, 01, 01)
+    # Filter stations that can't be shown on the map or that don't have any
+    # data after 2000
+    stations = stations[(stations['LAT'] > -85.) & (stations['LAT'] < 85.) &
+                        (stations['END'] > start)][::2]
 
     model = GSODBrowser(stations = stations)
     
