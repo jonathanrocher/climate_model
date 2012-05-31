@@ -1,0 +1,17 @@
+
+
+
+enamldef GSODView(MainWindow):
+    attr model
+    title = 'GSoD Browser'
+    initial_size = (1000, 600)
+
+    Container:
+        Splitter:
+            preferred_sizes = [600, 400]
+            EnableCanvas:
+                id: map
+                component << model.map.plot
+            TableView:
+                id: stations
+                item_model = model.station_table
