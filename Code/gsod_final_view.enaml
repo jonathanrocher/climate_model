@@ -1,17 +1,34 @@
 
-
+from widgets.spinner import Spinner
+from widgets.search_field import SearchField
 
 enamldef GSODView(MainWindow):
     attr model
     title = 'GSoD Browser'
-    initial_size = (1000, 600)
+    initial_size = (1200, 1000)
 
     Container:
+        constraints = [vbox(hbox(spacer, spn, search), splitter, timeseries),
+                       align('v_center', search, spn)]
+        SearchField:
+            id: search
+            constraints = [width <= 300]
+        Spinner:
+            id: spn
+            #spinning = True
         Splitter:
-            preferred_sizes = [600, 400]
+            id: splitter
+            preferred_sizes = [600, 256]
             EnableCanvas:
                 id: map
+                constraints = [width >= 256, height >= 256]
                 component << model.map.plot
             TableView:
                 id: stations
                 item_model = model.station_table
+        ScrollArea:
+            id: timeseries
+            constraints = [height == 300]
+            EnableCanvas:
+                constraints = [height == 600]
+                component << model.timeseries.plot
