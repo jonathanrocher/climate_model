@@ -44,8 +44,12 @@ amounts of data.
 
 # Std lib imports
 import datetime, dateutil
-import os
+import os, sys
 import warnings
+import logging
+
+log = logging.getLogger(__name__)
+log.addHandler(logging.StreamHandler(sys.stderr))
 
 # General imports
 import numpy as np
@@ -166,14 +170,15 @@ def datafile2pandas(filepath):
     """ Read a NCDC GSOD file into a pandas dataframe
     """
     df = pandas.read_table(filepath, sep="\s*", index_col=2, parse_dates = True,
-                           names = GSOD_DATA_FILE_COLS, skiprows = [0])
+                           names = GSOD_DATA_FILE_COLS, na_values=NA_COLS,
+                           skiprows = [0])
     return df
 
 def datafolder2pandas(folderpath):
     """ Read a NCDC GSOD folder into a pandas panel
     """
     data = {}
-    print "Loading all op files in %s ..." % folderpath
+    log.info("Loading all op files in %s ..." % folderpath)
     for filename in os.listdir(folderpath):
         if os.path.splitext(filename)[1] == ".op":
             file2load = os.path.join(folderpath, filename)
@@ -196,7 +201,7 @@ def collect_year_at_loc(year, location_WMO, location_WBAN, data_source = 'NCDC',
     filename = info2filepath(year, location_WMO, location_WBAN)
     folder_location = os.path.join("Data", "GSOD") #, "gsod_"+str(year))
     filepath = os.path.join(folder_location, filename)
-    print "Attempting to collect %s..." % filepath
+    log.info("Attempting to collect %s..." % filepath)
     filepath_found = False
     
     if not os.path.exists(filepath):
@@ -215,12 +220,18 @@ def collect_year_at_loc(year, location_WMO, location_WBAN, data_source = 'NCDC',
                 filepath = gzip.GzipFile(fileobj = gzf)
                 filepath_found = True
             except KeyError, e:
-                warnings.warn("File %s is missing from the dataset: skipping "
+                # Some archives have a './' at the beginning
+                try:
+                    gzf = archive.extractfile(os.path.join('.', filename+'.gz'))
+                    filepath = gzip.GzipFile(fileobj = gzf)
+                    filepath_found = True
+                except KeyError, e:
+                    log.warn("File %s is missing from the dataset: skipping "
                               "this location." % zipped_filepath)
         elif internet_connected:
             target_folder = "Data/GSOD/"
             if not os.path.exists(target_folder):
-                print "Creating locally the folder %s." % target_folder
+                log.info("Creating locally the folder %s." % target_folder)
                 os.mkdir(target_folder)
             # Download the file from NCDC
             if data_source == 'NCDC':
@@ -257,7 +268,7 @@ def collect_year(year, data_source = 'NCDC'):
             # tar file not present either: download it!
             if data_source == 'NCDC':
                 remote_location = str(year)
-            print("Retrieving archive %s... This may take several minutes." 
+            log.info("Retrieving archive %s... This may take several minutes." 
                   % local_filepath)
             remote_target = os.path.join(remote_location, filename)
             retrieve_file(data_source, remote_target, local_filepath)
@@ -423,7 +434,7 @@ class GSODDataReader(HasTraits):
             year_list.sort()
 
         result = None
-        print "Collecting data for years %s." % year_list
+        log.info("Collecting data for years %s." % year_list)
         for year in year_list:
             year_data = self.collect_year(year, station_name, exact_station,
                                           location_WMO, location_WBAN, country,
@@ -431,9 +442,9 @@ class GSODDataReader(HasTraits):
             if year_data is None:
                 continue
             else:
-                print("%s found with shape %s." % (type(year_data), 
+                log.info("%s found with shape %s." % (type(year_data), 
                                                    year_data.shape))
-            if result:
+            if result is not None:
                 if isinstance(year_data, pandas.DataFrame):
                     result = result.append(year_data)
                 elif isinstance(year_data, pandas.Panel):
