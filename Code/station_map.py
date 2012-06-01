@@ -64,10 +64,12 @@ class WeatherStationMap(HasTraits):
                   outline_color = 'black',
                   color = 'red',
                   line_width = 1.,
-                  marker_size = 2,
+                  marker_size = 1,
                   )
 
-        tile_cache = HTTPTileManager(in_level=0, max_level=15,
+        tile_cache = HTTPTileManager(in_level=0, max_level=6,
+                                     #server='b.tiles.mapbox.com',
+                                     #url='/v3/mapbox.natural-earth-2/%(zoom)d/%(row)d/%(col)d.png',
                                      server='oatile1.mqcdn.com',
                                      url='/tiles/1.0.0/sat/%(zoom)d/%(row)d/%(col)d.jpg',
                                      )
@@ -76,8 +78,11 @@ class WeatherStationMap(HasTraits):
         # actual ScatterPlot object to give to them
         scatter = plot.plots['stations'][0]
 
-        scatter.underlays.append(
-            Map(scatter, tile_cache=tile_cache, alpha=1., zoom_level=2))
+        map = Map(scatter, tile_cache=tile_cache, alpha=0.8, zoom_level=2)
+        scatter.underlays.append(map)
+
+        map.on_trait_change(lambda new: self._update_scatter(scatter, new),'zoom_level')
+        self._update_scatter(scatter, map.zoom_level)
 
         lasso_selection = LassoSelection(component=scatter,
                                          selection_datasource=scatter.index)
@@ -118,6 +123,14 @@ class WeatherStationMap(HasTraits):
 
         return container
 
+    def _update_scatter(self, scatter, zoom):
+        if zoom < 3:
+            scatter.trait_set(marker='dot', marker_size=1.0)
+        elif zoom < 7:
+            scatter.trait_set(marker='dot', marker_size=2.0)
+        else:
+            scatter.trait_set(marker='circle', marker_size=3.0)
+
     def _convert_lat(self, y):
         s = self._shift
         return "%.0f"%self._proj(0, (y*s)-(s/2.), inverse=True)[1]
@@ -147,7 +160,7 @@ if __name__ == "__main__":
     stations = dr.location_db
     stations = stations[(stations['LAT'] > -85.) & (stations['LAT'] < 85.)]
 
-    demo = WeatherStationMap(stations=stations[::10])
+    demo = WeatherStationMap(stations=stations)
     demo.configure_traits()
 
 
