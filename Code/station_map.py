@@ -60,11 +60,11 @@ class WeatherStationMap(HasTraits):
         plot.plot(("index", "value"),
                   type = "scatter",
                   name = "stations",
-                  marker = "circle",
+                  marker = "dot",
                   outline_color = 'black',
                   color = 'red',
                   line_width = 1.,
-                  marker_size = 3,
+                  marker_size = 2,
                   )
 
         tile_cache = HTTPTileManager(in_level=0, max_level=15,
@@ -102,13 +102,12 @@ class WeatherStationMap(HasTraits):
         scatter.tools.append(PanTool(scatter, drag_button='right'))
         scatter.tools.append(ZoomTool(scatter))
 
-        #plot.index_axis.title = "Longitude"
+        plot.index_axis.title = "Longitude"
         plot.index_axis.tick_label_formatter = self._convert_lon
-        #plot.value_axis.title = "Latitude"
+        plot.value_axis.title = "Latitude"
         plot.value_axis.tick_label_formatter = self._convert_lat
 
-        plot.padding = 2
-        #plot.padding_right = plot.padding_top = 2
+        plot.padding_right = plot.padding_top = 2
 
         container = OverlayPlotContainer(
             use_backbuffer=True,
