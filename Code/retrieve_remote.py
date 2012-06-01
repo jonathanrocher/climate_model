@@ -12,7 +12,7 @@ def info2filepath(year, location_WMO = None, location_WBAN = None, data_source =
     if data_source == 'NCDC':
         if location_WMO is not None and location_WBAN is not None:
             # Force the format to have WMO loc on 6 char and WBAN on 5. 
-            return "{0:0>6d}-{1:0>5d}-{2}.op".format(location_WMO, location_WBAN, year)
+            return "{0:0>6}-{1:0>5}-{2}.op".format(location_WMO, location_WBAN, year)
         elif location_WMO is None and location_WBAN is None:
             return "gsod_"+str(year)+".tar"
         else:
