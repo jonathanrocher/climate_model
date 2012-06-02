@@ -87,7 +87,7 @@ def list_yearly_data(year, ftp_connection):
             location_list.append(tuple(filename.split("-")))
         return
 
-    folder_location = os.path.join('/pub/data/gsod', str(year))
+    folder_location = '/pub/data/gsod' + '/' + str(year)
     out_cwd = ftp_connection.cwd(folder_location)
     if out_cwd != OUT_CWD_SUCCESS:
         raise OSError("Unable to change to directory %s. Is the ftp connection open?"
@@ -185,7 +185,7 @@ def collect_year_at_loc(year, location_WMO, location_WBAN, data_source='NCDC',
     filename = info2filepath(year, location_WMO, location_WBAN)
     folder_location = os.path.join("Data", "GSOD", "gsod_" + str(year))
     filepath = os.path.join(folder_location, filename)
-    print "Attempting to collect %s..." % filepath
+    print "Attempting to collect %s ..." % filepath
     filepath_found = True
 
     if not os.path.exists(filepath):
@@ -218,7 +218,9 @@ def collect_year_at_loc(year, location_WMO, location_WBAN, data_source='NCDC',
             # Download the file from NCDC
             if data_source == 'NCDC':
                 remote_location = str(year)
-            remote_target = os.path.join(remote_location, filename + ".gz")
+            remote_target = remote_location + '/' + filename + ".gz"
+            #zch
+            print 'remote', remote_target
             retrieve_file(data_source, remote_target, zipped_filepath)
             if os.path.isfile(zipped_filepath):
                 unzip(zipped_filepath)
@@ -256,7 +258,7 @@ def collect_year(year, data_source='NCDC'):
                 remote_location = str(year)
             print("Retrieving archive %s... This may take several minutes."
                   % local_filepath)
-            remote_target = os.path.join(remote_location, filename)
+            remote_target = remote_location + '/' + filename
             retrieve_file(data_source, remote_target, local_filepath)
         untar(local_filepath)
     try:
@@ -432,7 +434,7 @@ class GSODDataReader(HasTraits):
             else:
                 print("%s found with shape %s." % (type(year_data),
                                                    year_data.shape))
-            if result:
+            if result is not None:
                 if isinstance(year_data, pandas.DataFrame):
                     result = result.append(year_data)
                 elif isinstance(year_data, pandas.Panel):
@@ -441,13 +443,12 @@ class GSODDataReader(HasTraits):
                 result = year_data
         return result
 
-if __name__ == "__main__":
-
+def example():
     # Sample code for data collection tools usage description
     dr = GSODDataReader()
     dr.search_station("austin", country="US", state="TX")
     dr.search_station("pari", country="FR")
-    paris_data = dr.collect_data([2007, 2008], station_name="PARIS", country="FR")
+    paris_data = dr.collect_data([2000, 2008], station_name="PARIS", country="FR")
 
     # Pandas manipulation
     from extend_pandas import filter_data

@@ -23,8 +23,6 @@ enamldef Loader(Container):
         text = 'Load'
         constraints = [height == fld.height]
         clicked ::
-            import pdb
-            pdb.set_trace()
             from PySide import QtGui
             d = QtGui.QFileDialog()
             fn= d.getOpenFileName()[0]
