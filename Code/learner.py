@@ -12,7 +12,6 @@ def main():
 	series3 = DataSeries('three', random(100), None)
 	series4 = DataSeries('four', random(100), None)
 	series5 = DataSeries('five', random(100), None)
-	view.setup(None)
 	model.items = [series1, series2, series3, series4, series5]
 	view.show()
 if __name__ == '__main__':

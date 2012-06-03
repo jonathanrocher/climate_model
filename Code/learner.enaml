@@ -3,29 +3,26 @@ from traits.api import HasTraits, on_trait_change, List, Int
 from ml_chaco import gen_scatter_plot
 from ml_data import AbstractSeries
 from chaco.api import Base2DPlot
-from enaml.components.enable_canvas import EnableCanvas
 from enaml.layout.layout_helpers import hbox, vbox
 
 class ScatterTableModel(HasTraits):
 	
 	items = List(AbstractSeries)
-	canvases = List
+	plots = List
 	thumb_size = Int
 
 	@on_trait_change('items')
 	def update(self):
-		canvases = []
+		plots = []
 		for combination in combinations(self.items, 2):
 			series_one, series_two = combination[0], combination[1]
 			plot = gen_scatter_plot(series_one, series_two)
-			canvas = EnableCanvas()
-			canvas.component = plot
-			canvases.append(canvas)
-		self.canvases = canvases
+			plots.append(plot)
+		self.plots = plots
 
 	def gen_constraints(self, components):
 		num_items = len(self.items)
-		retval_hbox_list = []
+		retval_vbox_list = []
 		size_constraints = []
 		count = 0
 		if num_items > 1:
@@ -36,12 +33,12 @@ class ScatterTableModel(HasTraits):
 				# in row is equal to row_idx
 				n_cols = row_idx
 				for col_idx in xrange(n_cols):
-					plot = self.canvases[count]
+					plot = self.plots[count]
 					row_items.append(plot)
-					size_constraints.append(plot.width == self.thumb_size)
+					#size_constraints.append(plot.width == self.thumb_size)
 					count += 1
-				retval_hbox_list.append(vbox(*row_items))
-		retval = [hbox(*retval_hbox_list)] + size_constraints
+				retval_vbox_list.append(hbox(*row_items))
+		retval = [vbox(*retval_vbox_list)]
 		return retval
 
 enamldef ScatterTable(Container):
@@ -50,7 +47,7 @@ enamldef ScatterTable(Container):
 
 	Include:
 		id: plot_table
-		components << model.canvases
+		components << [EnableCanvas(component=plot) for plot in model.plots]
 
 enamldef MLView(MainWindow):
 	id: ml_view
