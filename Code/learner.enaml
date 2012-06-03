@@ -1,0 +1,50 @@
+from itertools import combinations
+from abc import ABCMeta, abstractmethod
+
+class AbstractSeries(object):
+	__metaclass__ = ABCMeta
+
+	def label(self):
+		raise NotImplementedError
+
+	def data(self):
+		raise NotImplementedError
+
+
+class ScatterMatrix(HasTraits):
+	
+	items = List(AbstractSeries)
+	plots = List
+
+	def __init__(self):
+		pass
+
+	@on_trait_change('items')
+	def update(self):
+		for combination in combinations(self.items, 2):
+		series_one, series_two = combination[0], combination[1]
+			plot = gen_scatter_plot(series_one.data(),
+				series_two.data())
+
+		# finally update plots
+
+
+def gen_constraints(plot_factory, components):
+	plot_factory.
+
+enamldef CombinationPlot(MainWindow):
+	attr plot_factory
+
+	Container:
+		constraints << gen_constraints(plot_factory, plots.components)
+
+		Include:
+			id: plots
+			components << plot_factory.plots
+
+enamldef MLView(MainWindow):
+	attr model
+	Container:
+		EnableCanvas:
+			component << model.plot
+	
