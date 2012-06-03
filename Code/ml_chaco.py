@@ -1,5 +1,5 @@
 from chaco.api import ArrayPlotData, Plot
-from util import DataSeries
+from ml_data import DataSeries
 
 def gen_scatter_plot(series_one, series_two):
 	"""
