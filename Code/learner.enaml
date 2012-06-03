@@ -33,12 +33,14 @@ class ScatterTableModel(HasTraits):
 				# in row is equal to row_idx
 				n_cols = row_idx
 				for col_idx in xrange(n_cols):
-					plot = self.plots[count]
-					row_items.append(plot)
-					#size_constraints.append(plot.width == self.thumb_size)
+					component = components[count]
+					row_items.append(component)
+					size_constraints.append(component.width == self.thumb_size)
+					size_constraints.append(component.height == self.thumb_size)
 					count += 1
 				retval_vbox_list.append(hbox(*row_items))
-		retval = [vbox(*retval_vbox_list)]
+		retval = [vbox(*retval_vbox_list)] + size_constraints
+		ret = retval
 		return retval
 
 enamldef ScatterTable(Container):
@@ -51,7 +53,7 @@ enamldef ScatterTable(Container):
 
 enamldef MLView(MainWindow):
 	id: ml_view
-	initial_size = (800, 600)
+	#initial_size = (1920, 1200)
 	attr model
 	ScatterTable:
 		id: scatter_plots

@@ -5,7 +5,7 @@ from ml_data import DataSeries
 def main():
 	with enaml.imports():
 		from learner import MLView, ScatterTableModel
-	model = ScatterTableModel(thumb_size=300)
+	model = ScatterTableModel(thumb_size=256)
 	view = MLView(model=model)
 	series1 = DataSeries('one', random(100), None)
 	series2 = DataSeries('two', random(100), None)
