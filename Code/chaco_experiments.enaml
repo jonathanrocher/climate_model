@@ -2,11 +2,14 @@ enamldef PltView(MainWindow):
 	initial_size = (1920, 1200)
 	attr plot
 	attr plot2
+	attr thumbnail_size
 	Container:
 		constraints=[hbox(plt1, plt2)]
 		EnableCanvas:
 			id: plt1
+			constraints = [width == thumbnail_size, height == thumbnail_size]
 			component = plot
 		EnableCanvas:
 			id: plt2
+			constraints = [width == thumbnail_size, height == thumbnail_size]
 			component = plot2

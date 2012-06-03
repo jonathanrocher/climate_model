@@ -1,50 +1,62 @@
 from itertools import combinations
-from abc import ABCMeta, abstractmethod
+from traits.api import HasTraits, on_trait_change, List, Int
+from ml_chaco import gen_scatter_plot
+from ml_data import AbstractSeries
+from chaco.api import Base2DPlot
+from enaml.components.enable_canvas import EnableCanvas
+from enaml.layout.layout_helpers import hbox, vbox
 
-class AbstractSeries(object):
-	__metaclass__ = ABCMeta
-
-	def label(self):
-		raise NotImplementedError
-
-	def data(self):
-		raise NotImplementedError
-
-
-class ScatterMatrix(HasTraits):
+class ScatterTableModel(HasTraits):
 	
 	items = List(AbstractSeries)
-	plots = List
-
-	def __init__(self):
-		pass
+	canvases = List
+	thumb_size = Int
 
 	@on_trait_change('items')
 	def update(self):
+		canvases = []
 		for combination in combinations(self.items, 2):
-		series_one, series_two = combination[0], combination[1]
-			plot = gen_scatter_plot(series_one.data(),
-				series_two.data())
+			series_one, series_two = combination[0], combination[1]
+			plot = gen_scatter_plot(series_one, series_two)
+			canvas = EnableCanvas()
+			canvas.component = plot
+			canvases.append(canvas)
+		self.canvases = canvases
 
-		# finally update plots
+	def gen_constraints(self, components):
+		num_items = len(self.items)
+		retval_hbox_list = []
+		size_constraints = []
+		count = 0
+		if num_items > 1:
+			n_rows = num_items - 1
+			for row_idx in xrange(n_rows, 0, -1):
+				row_items = []
+				# it just so happens that num cols
+				# in row is equal to row_idx
+				n_cols = row_idx
+				for col_idx in xrange(n_cols):
+					plot = self.canvases[count]
+					row_items.append(plot)
+					size_constraints.append(plot.width == self.thumb_size)
+					count += 1
+				retval_hbox_list.append(vbox(*row_items))
+		retval = [hbox(*retval_hbox_list)] + size_constraints
+		return retval
 
+enamldef ScatterTable(Container):
+	attr model
+	constraints << model.gen_constraints(plot_table.components)
 
-def gen_constraints(plot_factory, components):
-	plot_factory.
-
-enamldef CombinationPlot(MainWindow):
-	attr plot_factory
-
-	Container:
-		constraints << gen_constraints(plot_factory, plots.components)
-
-		Include:
-			id: plots
-			components << plot_factory.plots
+	Include:
+		id: plot_table
+		components << model.canvases
 
 enamldef MLView(MainWindow):
+	id: ml_view
+	initial_size = (800, 600)
 	attr model
-	Container:
-		EnableCanvas:
-			component << model.plot
+	ScatterTable:
+		id: scatter_plots
+		model << ml_view.model
 	

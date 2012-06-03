@@ -2,9 +2,7 @@ from gsod_collect import GSODDataReader
 from pandas import HDFStore
 from pandas.core.panel import Panel, DataFrame
 import numpy as np
-from sklearn.svm import SVR
-from sklearn import linear_model
-
+from abc import ABCMeta, abstractmethod
 from traits.api import HasTraits, Instance, on_trait_change, List
 
 # Available fields
@@ -33,6 +31,9 @@ FRSHTT
 """
 
 def download():
+	""" Convenience method that downloads all the weather data required
+	for the machine learning examples.
+	"""
 	reader = GSODDataReader()
 	year_list = range(2001, 2012)
 	austin = reader.collect_data(year_list, exact_station=True,
@@ -49,6 +50,62 @@ def download():
 	store['new_york'] = central_park
 	store['new_haven'] = new_haven
 	store.close()
+
+
+class AbstractSeries(object):
+	""" Abstract class for weather time series.
+
+	"""
+	__metaclass__ = ABCMeta
+
+	@abstractmethod
+	def label(self):
+		""" Return name of this time series
+
+		Returns
+		-------
+		result : string
+			name of this time series
+		"""
+		raise NotImplementedError
+
+	@abstractmethod
+	def data(self):
+		""" Return data corresponding to this time series
+
+		Returns
+		-------
+		result : numpy.ndarray of shape (n, 1) and dtype float64
+		"""
+		raise NotImplementedError
+
+	@abstractmethod
+	def time(self):
+		""" Return time index for the data in this time series
+
+		Returns
+		-------
+		result : numpy.ndarray of shape(n,3) and type int64
+			Columns are year, month, day
+
+		"""
+		raise NotImplementedError
+
+class DataSeries(AbstractSeries):
+	def __init__(self, name, data, time):
+		self._name = name
+		self._data = data
+		self._idx = time
+
+	def label(self):
+		return self._name
+
+	def data(self):
+		return self._data
+
+	def time(self):
+		return self._time
+
 
 class WeatherStore(object):
 
@@ -70,7 +127,7 @@ class WeatherStore(object):
 			val = val[key]
 		return val
 
-	def attrib(self, city, attrib):
+	def attrib_numpy(self, city, attrib):
 		df = self.dframe(city)
 		y = np.empty((df.shape[0], ), dtype=np.float64)
 		y[:] = df[attrib]
@@ -95,50 +152,17 @@ class WeatherStore(object):
 		"""
 		df = self.dframe(city)
 		X = self.time_indices(df)[:, 1:]
-		y = self.attrib(city, attrib)
+		y = self.attrib_numpy(city, attrib)
 		return X, y
-		
 
-
-
-# Learning models
-#----------------------------------------------------------
-
-class WeatherPredictor(HasTraits):
-	def __init__(self, weather_store):
-		self._ws = weather_store
-		self._learner_map = {
-		'regression' : self.regression,
-		'svr' : self.svr
-		}
-
-	def regression(self, X, y):
-		regr = linear_model.LinearRegression()
-		regr.fit(X, y)
-		return regr
-
-	def svr(self, X, y):
-		clf = SVR(C=1.0, epsilon=0.2)
-		clf.fit(X, y)
-		return clf
-
-	def test_learning(self, learning_method, city,
-		attrib, learn_idx=1600):
-		X, y = self._ws.learning_data(city, attrib)
-		learning_fn = self._learner_map[learning_method]
-		model = learning_fn(X[:learn_idx], y[:learn_idx])
-		pred = model.predict(X[learn_idx:])
-		return pred, y[learn_idx:]
-
-ws = WeatherStore('weather.h5')
-wp = WeatherPredictor(ws)
-
-class WeatherModel(HasTraits):
-	ws = Instance(WeatherStore)
-	wp = Instance(WeatherPredictor)
-	plot = Instance(Base2DPlot)
-	cities = List()
-
-	@on_trait_change('ws, wp, cities')
-	def update_plot(self):
-		pass
+	def attrib_dataseries(self, city, attrib):
+		""" 
+		Returns
+		-------
+		result : DataSeries
+			get the specified attribute for city as a DataSeries
+		"""
+		df = self.dframe(city)
+		indices = self.time_indices(df)
+		data = self.attrib_numpy(city, attrib)
+		return DataSeries(city, data, indices)
