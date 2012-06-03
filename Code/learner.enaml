@@ -38,24 +38,30 @@ class ScatterTableModel(HasTraits):
 					size_constraints.append(component.width == self.thumb_size)
 					size_constraints.append(component.height == self.thumb_size)
 					count += 1
-				retval_vbox_list.append(hbox(*row_items))
-		retval = [vbox(*retval_vbox_list)] + size_constraints
+				hbox_val = hbox(*row_items)
+				hbox_val.spacing = 5
+				retval_vbox_list.append(hbox_val)
+		vbox_val = vbox(*retval_vbox_list)
+		vbox_val.spacing = 5
+		retval = [vbox_val] + size_constraints
 		ret = retval
 		return retval
 
 enamldef ScatterTable(Container):
 	attr model
 	constraints << model.gen_constraints(plot_table.components)
-
+	padding = (0,0,0,0)
 	Include:
 		id: plot_table
 		components << [EnableCanvas(component=plot) for plot in model.plots]
 
 enamldef MLView(MainWindow):
 	id: ml_view
-	#initial_size = (1920, 1200)
+	initial_size = (650, 650)
+
 	attr model
-	ScatterTable:
-		id: scatter_plots
-		model << ml_view.model
+	ScrollArea:
+		ScatterTable:
+			id: scatter_plots
+			model << ml_view.model
 	
