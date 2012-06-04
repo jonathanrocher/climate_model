@@ -3,7 +3,7 @@ from traits.api import HasTraits, on_trait_change, List, Int
 from ml_chaco import gen_scatter_plot
 from ml_data import AbstractSeries
 from chaco.api import Base2DPlot
-from enaml.layout.layout_helpers import hbox, vbox
+from enaml.layout.layout_helpers import hbox, vbox, align
 
 class ScatterTableModel(HasTraits):
 	
@@ -43,7 +43,7 @@ class ScatterTableModel(HasTraits):
 				retval_vbox_list.append(hbox_val)
 		vbox_val = vbox(*retval_vbox_list)
 		vbox_val.spacing = 5
-		retval = [vbox_val] + size_constraints
+		retval = [vbox_val, align('left', *retval_vbox_list)] + size_constraints
 		ret = retval
 		return retval
 

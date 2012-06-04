@@ -1,18 +1,21 @@
 import enaml
 from numpy.random import random
-from ml_data import DataSeries
+from ml_data import DataSeries, WeatherStore
 
 def main():
+	ws = WeatherStore('weather.h5')
+	austin = ws.attrib_dataseries('austin','TEMP')
+	houston = ws.attrib_dataseries('houston','TEMP')
+	nyc = ws.attrib_dataseries('nyc','TEMP')
+	newark = ws.attrib_dataseries('newark','TEMP')
+	punta_arenas = ws.attrib_dataseries('punta_arenas','TEMP')
+	wellington = ws.attrib_dataseries('wellington','TEMP')
+	
 	with enaml.imports():
 		from learner import MLView, ScatterTableModel
-	model = ScatterTableModel(thumb_size=150)
+	model = ScatterTableModel(thumb_size=200)
 	view = MLView(model=model)
-	series1 = DataSeries('one', random(100), None)
-	series2 = DataSeries('two', random(100), None)
-	series3 = DataSeries('three', random(100), None)
-	series4 = DataSeries('four', random(100), None)
-	series5 = DataSeries('five', random(100), None)
-	model.items = [series1, series2, series3, series4, series5]
+	model.items = [austin, houston, nyc, newark, punta_arenas, wellington]
 	view.show()
 if __name__ == '__main__':
 	main()

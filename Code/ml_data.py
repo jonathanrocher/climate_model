@@ -40,15 +40,21 @@ def download():
 		station_name='AUSTIN CAMP MABRY', state='TX', country='US')
 	houston = reader.collect_data(year_list, exact_station=True,
 		station_name='HOUSTON/D.W. HOOKS', state='TX', country='US')
-	central_park = reader.collect_data(year_list, exact_station=True,
+	new_york = reader.collect_data(year_list, exact_station=True,
 		station_name='NEW YORK/LA GUARDIA', state='NY', country='US')
-	new_haven = reader.collect_data(year_list, exact_station=True,
-		station_name='NEW HAVEN', state='CT', country='US')
+	newark = reader.collect_data(year_list, exact_station=True,
+		station_name='NEWARK INTL AIRPORT', state='NJ', country='US')
+	punta_arenas = reader.collect_data(year_list, exact_station=True,
+		station_name='PUNTA ARENAS', country='CH')
+	wellington = reader.collect_data(year_list, exact_station=True,
+		station_name='WELLINGTON AIRPORT', country='NZ')
 	store = HDFStore('weather.h5')
 	store['austin'] = austin
 	store['houston'] = houston
-	store['new_york'] = central_park
-	store['new_haven'] = new_haven
+	store['nyc'] = new_york
+	store['newark'] = newark
+	store['punta_arenas'] = punta_arenas
+	store['wellington'] = wellington
 	store.close()
 
 
