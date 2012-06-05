@@ -4,7 +4,7 @@ from traits.api import HasTraits, Instance, List, Any
 from enable.api import Component
 from chaco.api import ArrayDataSource, LinearMapper, DataRange1D, VPlotContainer, \
                       FilledLinePlot, PlotGrid, PlotAxis, PlotLabel, \
-                      Reds as cmap
+                      Blues as cmap
 from chaco.tools.api import PanTool
 from chaco.scales.api import CalendarScaleSystem
 from chaco.scales_tick_generator import ScalesTickGenerator
