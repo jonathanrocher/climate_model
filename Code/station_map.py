@@ -62,7 +62,7 @@ class WeatherStationMap(HasTraits):
                   name = "stations",
                   marker = "dot",
                   outline_color = 'black',
-                  color = 'red',
+                  color = (1., 0., 0., 0.2),
                   line_width = 1.,
                   marker_size = 1,
                   )
@@ -125,11 +125,11 @@ class WeatherStationMap(HasTraits):
 
     def _update_scatter(self, scatter, zoom):
         if zoom < 3:
-            scatter.trait_set(marker='dot', marker_size=1.0)
+            scatter.trait_set(marker='dot', color=(1.,0.,0.,0.4), marker_size=1.0)
         elif zoom < 7:
-            scatter.trait_set(marker='dot', marker_size=2.0)
+            scatter.trait_set(marker='dot', color=(1.,0.,0.,0.6), marker_size=2.0)
         else:
-            scatter.trait_set(marker='circle', marker_size=3.0)
+            scatter.trait_set(marker='circle', color=(1.,0.,0.,1), marker_size=3.0)
 
     def _convert_lat(self, y):
         s = self._shift
