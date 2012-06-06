@@ -20,8 +20,12 @@ def gen_scatter_plot(series_one, series_two):
 	pd = ArrayPlotData(x=series_one_data[:size],
 		y=series_two_data[:size])
 	plot = Plot(pd)
-	scatterplot = plot.plot(('x','y'), color='lightblue',
-		type='scatter', marker='circle', marker_size=2)[0]
+	scatterplot = plot.plot(('x','y'), 
+                            color=(0.0, 0., 1., 0.05),
+		                    type='scatter', 
+                            marker='circle',
+                            line_width=0,
+                            marker_size=2)[0]
 
 	plot.x_axis.title = series_one.label()
 	plot.x_axis.tick_visible = False
