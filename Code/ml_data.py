@@ -29,7 +29,7 @@ PRCP
 SNDP           
 FRSHTT         
 """
-WEATHER_FIELDS = ['TEMP', 'DEWP', 'SLP', 'STP', 'VISIB', 'WDSP', 'MXSPD', 'GUST', 'MAX', 'MIN', 'PRCP', 'FRSHTT']
+WEATHER_FIELDS = ['TEMP', 'DEWP', 'VISIB', 'WDSP', 'MXSPD', 'FRSHTT']
 
 def download():
 	""" Convenience method that downloads all the weather data required
