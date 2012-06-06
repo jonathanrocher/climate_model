@@ -21,10 +21,9 @@ def gen_scatter_plot(series_one, series_two):
 		y=series_two_data[:size])
 	plot = Plot(pd)
 	scatterplot = plot.plot(('x','y'),
-                            color='lightblue',
+                            color=(0.3, 0.4, 0.902, 0.1),
 		                    type='scatter', 
-                            marker='circle',
-                            line_width=0.3,
+                            marker='dot',
                             marker_size=2)[0]
 
 	plot.x_axis.title = series_one.label()
