@@ -29,6 +29,7 @@ PRCP
 SNDP           
 FRSHTT         
 """
+WEATHER_FIELDS = ['TEMP', 'DEWP', 'SLP', 'STP', 'VISIB', 'WDSP', 'MXSPD', 'GUST', 'MAX', 'MIN', 'PRCP', 'FRSHTT']
 
 def download():
 	""" Convenience method that downloads all the weather data required
@@ -172,3 +173,6 @@ class WeatherStore(object):
 		indices = self.time_indices(df)
 		data = self.attrib_numpy(city, attrib)
 		return DataSeries(city, data, indices)
+
+	def cities(self):
+		return self._store.keys()

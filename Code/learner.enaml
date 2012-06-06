@@ -1,29 +1,39 @@
 from itertools import combinations
-from traits.api import HasTraits, on_trait_change, List, Int
+from traits.api import HasTraits, on_trait_change, List, Int, Enum, Instance, Str
 from ml_chaco import gen_scatter_plot
-from ml_data import AbstractSeries
+from ml_data import AbstractSeries, WEATHER_FIELDS, WeatherStore
 from chaco.api import Base2DPlot
 from enaml.layout.layout_helpers import hbox, vbox, align
 
+
 class ScatterTableModel(HasTraits):
-	
 	items = List(AbstractSeries)
 	plots = List
 	thumb_size = Int
+	field = Enum(WEATHER_FIELDS)
+	weather_store = Instance(WeatherStore)
+	cities = List(Str)
 
-	@on_trait_change('items')
-	def update(self):
-		plots = []
-		for combination in combinations(self.items, 2):
-			series_one, series_two = combination[0], combination[1]
-			plot = gen_scatter_plot(series_one, series_two)
-			plots.append(plot)
-		self.plots = plots
+	def __init__(self, thumb_size, weather_store, field):
+		HasTraits.__init__(self)
+		self.thumb_size = thumb_size
+		self.weather_store = weather_store
+		self.field = field
+
+	def _items_changed(self):
+		if len(self.items) > 1:
+			plots = []
+			for combination in combinations(self.items, 2):
+				series_one, series_two = combination[0], combination[1]
+				plot = gen_scatter_plot(series_one, series_two)
+				plots.append(plot)
+			self.plots = plots
 
 	def gen_constraints(self, components):
 		num_items = len(self.items)
 		retval_vbox_list = []
 		size_constraints = []
+		retval = []
 		count = 0
 		if num_items > 1:
 			n_rows = num_items - 1
@@ -41,11 +51,28 @@ class ScatterTableModel(HasTraits):
 				hbox_val = hbox(*row_items)
 				hbox_val.spacing = 5
 				retval_vbox_list.append(hbox_val)
-		vbox_val = vbox(*retval_vbox_list)
-		vbox_val.spacing = 5
-		retval = [vbox_val, align('left', *retval_vbox_list)] + size_constraints
-		ret = retval
+			if len(retval_vbox_list) > 1:
+				vbox_val = vbox(*retval_vbox_list)
+				vbox_val.spacing = 5
+				retval = [vbox_val, align('left', *retval_vbox_list)]
+			retval = retval + size_constraints
+			ret = retval
 		return retval
+
+	def select_city(self, name):
+		self.cities.append(name)
+		self.items = [self.weather_store.attrib_dataseries(name, self.field)] + self.items
+
+	def unselect_city(self, name):
+		self.cities.remove(name)
+		item = [x for x in self.items if x.label() != name]
+		self.items = item
+
+	def _field_changed(self):
+		items = []
+		for city in self.cities:
+			items.append(self.weather_store.attrib_dataseries(city, self.field))
+		self.items = items
 
 enamldef ScatterTable(Container):
 	attr model
@@ -55,13 +82,46 @@ enamldef ScatterTable(Container):
 		id: plot_table
 		components << [EnableCanvas(component=plot) for plot in model.plots]
 
+
+enamldef CityChoice(CheckBox):
+	attr model
+	toggled::
+		if checked:
+			model.select_city(text)
+		else:
+			model.unselect_city(text)
+
+enamldef WeatherStoreView(Container):
+	attr model
+	attr wstore
+	Label:
+		text='Weather Field'
+
+	ComboBox:
+		items = WEATHER_FIELDS
+		value = items[0]
+		value >> model.field
+
+	Label:
+		text = 'Cities'
+	Include:
+		components << [CityChoice(text=city, model=model) for city in wstore.cities()]
+	
 enamldef MLView(MainWindow):
 	id: ml_view
-	initial_size = (650, 650)
-
-	attr model
-	ScrollArea:
-		ScatterTable:
-			id: scatter_plots
+	attr model: ScatterTableModel
+	initial_size = (800, 700)
+	Container:
+		id: root
+		constraints = [hbox(wview, plot_scroll), wview.top == plot_scroll.top, plot_scroll.height >= 600]
+		WeatherStoreView:
+			id: wview
+			wstore << ml_view.model.weather_store
 			model << ml_view.model
+		ScrollArea:
+			id: plot_scroll
+			ScatterTable:
+				id: scatter_plots
+				model << ml_view.model
+
 	
