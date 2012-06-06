@@ -1,4 +1,5 @@
 
+import os
 import numpy
 import pyproj
 import pandas
@@ -7,7 +8,7 @@ from traits.api import (HasTraits, Any, Instance, Array, Float,
                         Property, cached_property)
 
 from enable.api import Component
-from mapping.enable.api import HTTPTileManager
+from mapping.enable.api import HTTPTileManager, MBTileManager
 
 from chaco.api import (ArrayPlotData, Plot, OverlayPlotContainer, LinearMapper,
                        LassoOverlay, ScatterInspectorOverlay)
@@ -67,9 +68,12 @@ class WeatherStationMap(HasTraits):
                   marker_size = 1,
                   )
 
-        tile_cache = HTTPTileManager(in_level=0, max_level=6,
-                                     #server='b.tiles.mapbox.com',
-                                     #url='/v3/mapbox.natural-earth-2/%(zoom)d/%(row)d/%(col)d.png',
+        mbtiles_fname = os.path.join('Data', 'tiles.mbtiles')
+        if os.path.exists(mbtiles_fname):
+            tile_cache = MBTileManager(filename=mbtiles_fname,
+                                       min_level=0, max_level=7)
+        else:
+            tile_cache = HTTPTileManager(min_level=0, max_level=6,
                                      server='oatile1.mqcdn.com',
                                      url='/tiles/1.0.0/sat/%(zoom)d/%(row)d/%(col)d.jpg',
                                      )
