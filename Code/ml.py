@@ -9,11 +9,13 @@ from traits.api import HasTraits, Instance, on_trait_change, List
 from chaco.api import Base2DPlot
 from ml_data import WeatherStore
 
+LEARNING_METHODS = ['regression', 'svr']
+
 # Learning models
 #----------------------------------------------------------
 class WeatherPredictor(HasTraits):
-	def __init__(self, weather_store):
-		self._ws = weather_store
+	def __init__(self, wstore):
+		self._ws = wstore
 		self._learner_map = {
 		'regression' : self.regression,
 		'svr' : self.svr
@@ -37,18 +39,13 @@ class WeatherPredictor(HasTraits):
 		pred = model.predict(X[learn_idx:])
 		return pred, y[learn_idx:]
 
-ws = WeatherStore('weather.h5')
-wp = WeatherPredictor(ws)
+	def cross_learn(self, learning_method, city_one,
+		city_two, attrib):
+		X, y = self._ws.learning_data(city_one, attrib)
+		learning_fn = self._learner_map[learning_method]
+		model = learning_fn(X, y)
+		X, y = self._ws.learning_data(city_two, attrib)
+		pred = model.predict(X)
+		return pred, y
 
-class WeatherModel(HasTraits):
-	ws = Instance(WeatherStore)
-	wp = Instance(WeatherPredictor)
-	plot = Instance(Base2DPlot)
-	cities = List()
 
-	@on_trait_change('ws, wp, cities')
-	def update_plot(self):
-		pass
-
-if __name__ == '__main__':
-	

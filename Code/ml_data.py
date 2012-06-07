@@ -111,7 +111,7 @@ class DataSeries(AbstractSeries):
 		return self._data
 
 	def time(self):
-		return self._time
+		return self._idx
 
 
 class WeatherStore(object):

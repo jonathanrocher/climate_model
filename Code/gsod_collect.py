@@ -62,7 +62,7 @@ from traits.api import HasTraits, Enum, Array, Dict, Instance
 from retrieve_remote import retrieve_file, info2filepath
 import gzip, tarfile
 from file_sys_util import untar, unzip
-from extend_pandas import downsample, GSOD_DATA_FILE_COLS
+from extend_pandas import downsample, GSOD_DATA_FILE_COLS, NA_COLS
 
 ###############################################################################
 

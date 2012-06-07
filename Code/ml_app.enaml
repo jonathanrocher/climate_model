@@ -1,0 +1,85 @@
+from ml_data import AbstractSeries, WEATHER_FIELDS, WeatherStore, DataSeries
+from ml import LEARNING_METHODS
+from traits.api import HasTraits, on_trait_change, List, Int, Enum, Instance, Str, Trait, Any
+from chaco.api import Base2DPlot
+from ml_chaco import gen_line_plot
+
+
+class MLViewModel(HasTraits):
+    plot = Any
+    field = Enum(WEATHER_FIELDS)
+    wstore = Instance(WeatherStore)
+    city_one = Str
+    city_two = Str
+    learning_method = Enum(LEARNING_METHODS)
+
+    def __init__(self, wstore, predictor, field='TEMP', learning_method='svr',
+        city_one='nyc', city_two='nyc'):
+        HasTraits.__init__(self)
+        self.wstore = wstore
+        self.field = field
+        self.predictor = predictor
+        self.learning_method = learning_method
+        self.city_one = city_one
+        self.city_two = city_two
+
+    @on_trait_change('city_one, city_two, field, learning_method')
+    def update(self):
+        print 'called'
+        if len(self.city_one) > 0 and len(self.city_two) > 0:
+            if self.city_one == self.city_two:
+                pred, y = self.predictor.test_learning(self.learning_method,
+                    self.city_one, self.field)
+            else:
+                pred, y = self.predictor.cross_learn(self.learning_method,
+                    self.city_one, self.city_two, self.field)
+            self.plot = gen_line_plot(pred, y, self.field)
+
+enamldef LeftPane(Container):
+    attr model
+    attr wstore
+
+    Label:
+        text = 'Weather Field'
+    ComboBox:
+        items = WEATHER_FIELDS
+        value = items[0]
+        value >> model.field
+
+    Label:
+        text = 'Learning Method'
+    ComboBox:
+        items = LEARNING_METHODS
+        value = 'svr'
+        value >> model.learning_method
+
+    Label:
+        text = 'City #1'
+    ComboBox:
+        items = wstore.cities()
+        value = items[0]
+        value >> model.city_one
+
+    Label:
+        text = 'City #2'
+    ComboBox:
+        items = wstore.cities()
+        value = items[1]
+        value >> model.city_two
+
+
+enamldef MLView(MainWindow):
+    id: ml_view
+    attr model
+    attr wstore
+
+    Container:
+        LeftPane:
+            id: left_pane
+            model << ml_view.model
+            wstore << ml_view.wstore
+
+        Include:
+            id: right_pane
+            components = []
+            components << [] if model.plot is None else [EnableCanvas(component=model.plot)]
