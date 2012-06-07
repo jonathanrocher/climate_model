@@ -30,7 +30,7 @@ def retrieve_file(data_source, remote_target, local_filepath):
     print "Attempting to retrieve %s from the servers..." % remote_target
     if data_source == "NCDC":
         url_base = "ftp://ftp.ncdc.noaa.gov/pub/data/gsod"
-        url = os.path.join(url_base, remote_target)
+        url = url_base + '/' + remote_target
         try:
             received = urlretrieve(url, local_filepath)
         except IOError as e:

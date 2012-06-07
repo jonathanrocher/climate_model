@@ -1,4 +1,5 @@
-""" Implement a Chaco data plotter that loads pandas data from an hdf5 file
+""" ENAML VERSION
+Implement a Chaco data plotter that loads pandas data from an hdf5 file
 or directly from the object.
 The plotter contains zoom, pan, and legend highlighter tools and preserve
 the datetime tick labels.
@@ -18,22 +19,24 @@ import os
 import json
 import pandas
 import time
+import numpy as np
 
 # Enthought imports
 from enable.api import ComponentEditor
 from traits.api import HasTraits, Instance, Dict, File, Bool, Enum, List, \
-    on_trait_change, Int, Str
+    on_trait_change, Int, Str, Any
 from traitsui.api import View, Item, VGroup, HSplit
 
 # Chaco imports
 from chaco.api import ArrayPlotData, ToolbarPlot, PlotAxis
-from chaco.tools.api import PanTool, ZoomTool, LegendHighlighter
+from chaco.tools.api import PanTool, ZoomTool, LegendHighlighter, \
+    RangeSelection, RangeSelectionOverlay
 # for datetime tick labels
 from chaco.scales.api import CalendarScaleSystem
 from chaco.scales_tick_generator import ScalesTickGenerator
 
 # Use of Pandas in Chaco
-from chaco_pandas import pandas_hdf_to_data_dict2, pandas2array_dict
+from chaco_pandas import pandas_hdf_to_data_dict, pandas2array_dict
 
 colors = ["black", "green", "red", "blue", "lightblue", "lightgreen", 
           "pink", "yellow", "darkgray", "silver"]
@@ -78,11 +81,12 @@ class GSODDataPlotterView(HasTraits):
     # Data
     ts_data = Dict()
     arr_plot_data = Instance(ArrayPlotData, ())
+    times_ds = Any()   # arraydatasource for the time axis data
     index_is_dates = Bool()
 
     # Plots
-    ts_plot = Instance(ToolbarPlot)
-    ts_analysis_plot = Instance(ToolbarPlot)
+    ts_plot = Instance(ToolbarPlot, ())
+    ts_analysis_plot = Instance(ToolbarPlot, ())
 
     def trait_view(self, view):
         """ Build the view. The local namespace is 
@@ -127,7 +131,7 @@ class GSODDataPlotterView(HasTraits):
     def _data_file_changed(self):
        """ Update the data from the HDF5 file.
        """
-       ts_data, self.index_is_dates = pandas_hdf_to_data_dict2(self.data_file)
+       ts_data, self.index_is_dates = pandas_hdf_to_data_dict(self.data_file)
        assert("index" in ts_data)
        self.ts_data = ts_data
 
@@ -146,7 +150,7 @@ class GSODDataPlotterView(HasTraits):
         """
         self.ts_plot = ToolbarPlot(self.arr_plot_data)
         for i, k in enumerate([k for k in self.ts_data.keys() if k != "index"]):
-            self.ts_plot.plot(("index", k), name = k, color = colors[i % len(colors)])
+            renderer = self.ts_plot.plot(("index", k), name = k, color = colors[i % len(colors)])[0]
         if self.index_is_dates:
             # Index was an array of datetime: overwrite the x axis
             self.ts_plot.x_axis = None
@@ -156,10 +160,44 @@ class GSODDataPlotterView(HasTraits):
             self.ts_plot.x_grid.tick_generator = x_axis.tick_generator
             
         if self.data_file:
-            self.ts_plot.title = "Time series visualization from %s" % self.data_file
+            self.ts_plot.title = ("Time series visualization from %s" 
+                                  % (os.path.split(self.data_file)[1]))
         else:
             self.ts_plot.title = "Time series visualization"
         attach_tools(self.ts_plot)
+
+        # Attach the range selection to the last renderer; any one will do
+        self.ts_plot.tools.append(RangeSelection(renderer, left_button_selects = False,
+            auto_handle_event = False))
+        # Attach the corresponding overlay
+        self._range_selection_overlay = RangeSelectionOverlay(renderer,
+                                    metadata_name="selections")
+        self.ts_plot.overlays.append(self._range_selection_overlay)
+        # Grab a reference to the Time axis datasource and add a listener to its
+        # selections metadata
+        self.times_ds = renderer.index
+        self.times_ds.on_trait_change(self._selections_changed)
+
+    def _selections_changed(self, event):
+        """ Selection of a time range on the first plot will triger a redraw of 
+        the correlation plot if present.
+        """
+        if self.tool_chooser != CORRELATION:
+            return
+        if not isinstance(event, dict) or "selections" not in event:
+            return
+        corr_index = self.corr_renderer.index
+        selections = event["selections"]
+        if selections is None:
+            corr_index.metadata.pop("selections", None)
+            return
+        else:
+            low, high = selections
+            data = self.times_ds.get_data()
+            low_ndx = data.searchsorted(low)
+            high_ndx = data.searchsorted(high)
+            corr_index.metadata["selections"] = np.arange(low_ndx, high_ndx+1, 1, dtype=int)
+            self.ts_analysis_plot.request_redraw()
 
     @on_trait_change("tool_chooser, ts1_chooser, ts2_chooser, ma_window_size")
     def update_analysis_plot(self):
@@ -167,7 +205,8 @@ class GSODDataPlotterView(HasTraits):
         """
         self.ts_analysis_plot = ToolbarPlot(self.arr_plot_data)
         if self.tool_chooser == CORRELATION:
-            self.ts_analysis_plot.plot((self.ts1_chooser, self.ts2_chooser), type = "scatter", color = "blue")
+            self.corr_renderer = self.ts_analysis_plot.plot((self.ts1_chooser, 
+                            self.ts2_chooser), type = "scatter", color = "blue")[0]
             self.ts_analysis_plot.title = "%s plotted against %s" % (self.ts1_chooser, self.ts2_chooser)
             self.ts_analysis_plot.index_axis.title = self.ts1_chooser
             self.ts_analysis_plot.value_axis.title = self.ts2_chooser
@@ -184,13 +223,19 @@ class GSODDataPlotterView(HasTraits):
             # Compute the correlation coefficients between the chosen TS
             ts1 = pandas.Series(self.ts_data[self.ts1_chooser])
             ts2 = pandas.Series(self.ts_data[self.ts2_chooser])
+            import pdb
+            pdb.set_trace()
             corr_coefs = ts1.corr(ts2), ts1.corr(ts2, method = 'spearman'), ts1.corr(ts2, method = 'kendall')    
             self.ts_analysis_details = ("Coefficients of correlation: Std = %5.3f, Spearman = %5.3f, Kendall = %5.3f." % corr_coefs)
             return 
         
 if __name__ == "__main__":
-    viewer = GSODDataPlotterView() #data_file = "temp_data_paris.h5"
-    viewer.configure_traits()
+    model = GSODDataPlotterView()
+    import enaml
+    with enaml.imports():
+        from gsod_plot_view import StatsView
+    view = StatsView(model=model)
+    view.show()
 
 
 

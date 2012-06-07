@@ -11,7 +11,7 @@ import numpy as np
 import time
 import warnings
 
-def pandas_hdf_to_data_dict2(filename):
+def pandas_hdf_to_data_dict(filename):
     """ Explore the content of the pandas HDFStore (HDF5) and create a dictionary
     of timeseries (numpy arrays) found in it. The key will be used as names
     for the curves. All indexes must be the same and stored once with key
@@ -44,7 +44,7 @@ def pandas_hdf_to_data_dict2(filename):
     # All pandas stored using the HDFStore interface are organized one per
     # group. DateRange indexes possess a 'kind' attribute that specifies
     # that it is an array of datetime objects.
-    for key, group in h5file.root._v_children.items():
+    for key, _ in h5file.root._v_children.items():
         group = getattr(h5file.root, key)
         pandas_type = getattr(group._v_attrs, "pandas_type", "other")
         if pandas_type == 'series':
@@ -58,7 +58,8 @@ def pandas_hdf_to_data_dict2(filename):
             index_dict[key] = group.axis1
             data = group.block0_values.read()
             if isinstance(data, list):
-                # FIXME: this is a hack: pandas sometimes stores a df into a list with 1 array!!
+                # FIXME: this is a hack: pandas sometimes stores a df
+                # into a list with 1 array!!
                 data = data[0]
             assert(data.ndim == 2)
             for i, col_name in enumerate(group.axis0):
@@ -72,7 +73,8 @@ def pandas_hdf_to_data_dict2(filename):
                     entry = key+"_"+item_name+"_"+col_name
                     content[entry] = np.asarray(data[i,:,j], dtype = np.float)
         else:
-            raise ValueError("The group found in the file %s is not a standard type." % filename)
+            raise ValueError("The group found in the file %s"
+                " is not a standard type." % filename)
 
     key0,index0 = index_dict.items()[0]
     arr_index0 = index0.read()
@@ -81,33 +83,19 @@ def pandas_hdf_to_data_dict2(filename):
     # FIXME: do this by creating a 2D np array?
     for k,v in index_dict.items()[1:]:
         if not np.all(v.read() == arr_index0):
-            warnings.warn("Error: the index of %s is not equal to the index of %s" % (k, key0))
+            warnings.warn("Error: the index of %s is not"
+                " equal to the index of %s" % (k, key0))
     index_is_dates = getattr(index0._v_attrs, 'kind', "numeric") == "datetime"
     h5file.close()
     return content, index_is_dates
 
-def pandas_hdf_to_data_dict1(filename):
-    """ Explore the content of the pandas store (HDF5) and create a dictionary
-    of timeseries (numpy arrays) found in it. The key will be used as names
-    for the curves. All indexes must be the same and stored once with key
-    "index".
-
-    NOTE: This is the naive version of the task using the pandas' interface only.
-    See version 2 for faster implementation. 
-    """
-    store = pandas.HDFStore(filename, "r")
-    pandas_list = [store[key] for key in store.handle.root._v_children.keys()]
-    names = store.handle.root._v_children.keys()
-    store.close()
-    return  pandas2array_dict(pandas_list, names = names)
-
 def pandas2array_dict(pandas_list, names = []):
     """ Convert a list of pandas into a dict of arrays for plotting.
-    They must have the same index. One of the entries in the output dict is one
-    of these indexes with key "index". The arrays will be stored with the name
-    of the pandas (.name attr), and if applicable the name of the column and of
-    the item. Optionally a list of names to use can be passed to override the
-    .name attribute.
+    They must have the same index. One of the entries in the output
+    dict is one of these indexes with key "index". The arrays will be
+    stored with the name of the pandas (.name attr), and if applicable
+    the name of the column and of the item. Optionally a list of names
+    to use can be passed to override the .name attribute.
     
     FIXME: Add check that index is always the same. 
     """
@@ -119,7 +107,8 @@ def pandas2array_dict(pandas_list, names = []):
     first_index = pandas_list[0].index
     if first_index.is_all_dates():
         index_is_dates = True
-        array_dict["index"] = [time.mktime(d.timetuple()) for d in np.array(first_index)]
+        array_dict["index"] = [time.mktime(d.timetuple()) for d in 
+        np.array(first_index)]
     else:
         index_is_dates = False
         array_dict["index"] = np.array(first_index)

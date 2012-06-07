@@ -234,7 +234,6 @@ def store_pandas(pandas_dict, filename, complevel = 9 , complib = "blosc"):
         store[name] = panda
     store.close()
     
-    
 def append_panels(p1,p2):
     """ Append panels to each other in the index (time) dimension (major axis)
 
@@ -263,4 +262,5 @@ def append_panels(p1,p2):
 
     return pandas.Panel(p3, items=result_items, major_axis=result_major_axis, 
                         minor_axis=result_minor_axis)
+
  
