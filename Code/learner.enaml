@@ -32,6 +32,12 @@ class ScatterTableModel(HasTraits):
                 plots.append(plot)
             self.plots = plots
 
+    def _field_changed(self):
+        items = []
+        for city in self.cities:
+            items.append(self.weather_store.attrib_dataseries(city, self.field))
+        self.items = items
+
     def gen_constraints(self, components):
         num_items = len(self.items)
         retval_vbox_list = []
@@ -71,11 +77,7 @@ class ScatterTableModel(HasTraits):
         item = [x for x in self.items if x.label() != name]
         self.items = item
 
-    def _field_changed(self):
-        items = []
-        for city in self.cities:
-            items.append(self.weather_store.attrib_dataseries(city, self.field))
-        self.items = items
+    
 
 enamldef ScatterTable(Container):
     attr model
