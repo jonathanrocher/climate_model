@@ -16,9 +16,7 @@ canopy?).
 
 # Major library imports
 import os
-import json
 import pandas
-import time
 import numpy as np
 
 # Enthought imports
@@ -38,7 +36,7 @@ from chaco.scales_tick_generator import ScalesTickGenerator
 # Use of Pandas in Chaco
 from chaco_pandas import pandas_hdf_to_data_dict, pandas2array_dict
 
-colors = ["black", "green", "red", "blue", "lightblue", "lightgreen", 
+colors = ["black", "green", "red", "blue", "lightblue", "lightgreen",
           "pink", "yellow", "darkgray", "silver"]
 
 # Tool names:
@@ -223,8 +221,6 @@ class GSODDataPlotterView(HasTraits):
             # Compute the correlation coefficients between the chosen TS
             ts1 = pandas.Series(self.ts_data[self.ts1_chooser])
             ts2 = pandas.Series(self.ts_data[self.ts2_chooser])
-            import pdb
-            pdb.set_trace()
             corr_coefs = ts1.corr(ts2), ts1.corr(ts2, method = 'spearman'), ts1.corr(ts2, method = 'kendall')    
             self.ts_analysis_details = ("Coefficients of correlation: Std = %5.3f, Spearman = %5.3f, Kendall = %5.3f." % corr_coefs)
             return 

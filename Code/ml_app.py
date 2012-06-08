@@ -1,6 +1,4 @@
 
-from gsod_collect import GSODDataReader
-from chaco.api import Base2DPlot
 from ml_data import WeatherStore
 from ml import WeatherPredictor
 import enaml

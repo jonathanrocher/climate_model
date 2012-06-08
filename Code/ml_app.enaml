@@ -1,6 +1,8 @@
-from ml_data import AbstractSeries, WEATHER_FIELDS, WeatherStore, DataSeries
+from ml_data import (AbstractSeries, WEATHER_FIELDS, 
+    WeatherStore, DataSeries)
 from ml import LEARNING_METHODS
-from traits.api import HasTraits, on_trait_change, List, Int, Enum, Instance, Str, Trait, Any
+from traits.api import (HasTraits, on_trait_change, 
+    List, Int, Enum, Instance, Str, Trait, Any)
 from chaco.api import Base2DPlot
 from ml_chaco import gen_line_plot
 
@@ -13,8 +15,8 @@ class MLViewModel(HasTraits):
     city_two = Str
     learning_method = Enum(LEARNING_METHODS)
 
-    def __init__(self, wstore, predictor, field='TEMP', learning_method='svr',
-        city_one='nyc', city_two='nyc'):
+    def __init__(self, wstore, predictor, field='TEMP', 
+        learning_method='svr', city_one='nyc', city_two='nyc'):
         HasTraits.__init__(self)
         self.wstore = wstore
         self.field = field
@@ -25,7 +27,6 @@ class MLViewModel(HasTraits):
 
     @on_trait_change('city_one, city_two, field, learning_method')
     def update(self):
-        print 'called'
         if len(self.city_one) > 0 and len(self.city_two) > 0:
             if self.city_one == self.city_two:
                 pred, y = self.predictor.test_learning(self.learning_method,
@@ -39,47 +40,52 @@ enamldef LeftPane(Container):
     attr model
     attr wstore
 
-    Label:
-        text = 'Weather Field'
-    ComboBox:
-        items = WEATHER_FIELDS
-        value = items[0]
-        value >> model.field
+    GroupBox:
+        Label:
+            text = 'Weather Field:'
+        ComboBox:
+            items = WEATHER_FIELDS
+            value = items[0]
+            value >> model.field
 
-    Label:
-        text = 'Learning Method'
-    ComboBox:
-        items = LEARNING_METHODS
-        value = 'svr'
-        value >> model.learning_method
+    GroupBox:
+        Label:
+            text = 'Learning Method:'
+        ComboBox:
+            items = LEARNING_METHODS
+            value = 'svr'
+            value >> model.learning_method
 
-    Label:
-        text = 'City #1'
-    ComboBox:
-        items = wstore.cities()
-        value = items[0]
-        value >> model.city_one
+    GroupBox:
+        Label:
+            text = 'City #1:'
+        ComboBox:
+            items = wstore.cities()
+            value = 'newark'
+            value >> model.city_one
 
-    Label:
-        text = 'City #2'
-    ComboBox:
-        items = wstore.cities()
-        value = items[1]
-        value >> model.city_two
+    GroupBox:
+        Label:
+            text = 'City #2:'
+        ComboBox:
+            items = wstore.cities()
+            value = 'nyc'
+            value >> model.city_two
 
 
 enamldef MLView(MainWindow):
     id: ml_view
     attr model
     attr wstore
-
+    initial_size = (1600, 800)
     Container:
+        constraints = [hbox(vbox(left_pane, spacer), right_pane)]
         LeftPane:
             id: left_pane
             model << ml_view.model
             wstore << ml_view.wstore
-
-        Include:
+        Container:
             id: right_pane
-            components = []
-            components << [] if model.plot is None else [EnableCanvas(component=model.plot)]
+            Include:
+                components = []
+                components << [] if model.plot is None else [EnableCanvas(component=model.plot)]
